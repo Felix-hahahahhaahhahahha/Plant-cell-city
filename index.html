@@ -1,0 +1,2342 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>植物细胞之城 Plant Cell City</title>
+<style>
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0;height:100%;overflow:hidden;background:#0d1a14;
+    font-family:"Segoe UI","PingFang SC","Microsoft YaHei","Hiragino Sans GB",system-ui,-apple-system,sans-serif;}
+  #game{display:block;position:fixed;inset:0;cursor:pointer}
+
+  /* ---------- 通用遮罩 ---------- */
+  .overlay{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
+    z-index:50;padding:20px;overflow-y:auto}
+  .hidden{display:none !important}
+
+  /* ---------- 语言选择开场 ---------- */
+  #langScreen{background:radial-gradient(circle at 50% 40%,#1d3b2c 0%,#0d1a14 70%)}
+  #langScreen .panel{text-align:center;max-width:640px;width:100%;animation:pop .5s ease}
+  @keyframes pop{from{opacity:0;transform:translateY(18px) scale(.97)}to{opacity:1;transform:none}}
+  #langScreen h1{font-size:clamp(28px,6vw,46px);margin:0 0 6px;color:#c8f2d0;letter-spacing:2px;
+    text-shadow:0 0 22px rgba(110,230,150,.45)}
+  #langScreen h2{font-size:clamp(14px,2.6vw,19px);margin:0 0 6px;color:#7fc99a;font-weight:500;letter-spacing:3px}
+  #langScreen p.sub{color:#8fb8a2;font-size:14px;margin:16px 0 30px;line-height:1.7}
+  .langBtns{display:flex;gap:18px;justify-content:center;flex-wrap:wrap}
+  .langBtn{cursor:pointer;border:2px solid rgba(126,220,160,.45);background:rgba(30,70,50,.55);
+    color:#d3ffe0;border-radius:18px;padding:20px 40px;font-size:20px;font-weight:600;
+    display:flex;flex-direction:column;align-items:center;gap:8px;min-width:150px;
+    transition:.22s;font-family:inherit;backdrop-filter:blur(4px)}
+  .langBtn .flag{font-size:34px;line-height:1}
+  .langBtn:hover{transform:translateY(-5px) scale(1.05);background:rgba(48,110,76,.8);
+    border-color:#7ee0a0;box-shadow:0 12px 34px rgba(60,200,120,.3)}
+  .langBtn small{font-size:11px;font-weight:400;opacity:.7;letter-spacing:1px}
+
+  /* ---------- HUD ---------- */
+  #hud{position:fixed;inset:0;pointer-events:none;z-index:20}
+  #checklist{position:absolute;top:14px;left:14px;background:rgba(10,26,19,.86);
+    border:1px solid rgba(120,220,160,.32);border-radius:14px;padding:12px 14px;min-width:214px;
+    color:#d6f5e0;backdrop-filter:blur(7px);box-shadow:0 8px 26px rgba(0,0,0,.4);pointer-events:auto;
+    font-size:13px}
+  #checklist .clTitle{font-weight:700;font-size:13px;color:#9be8b6;margin-bottom:8px;
+    display:flex;justify-content:space-between;align-items:center;gap:10px}
+  #clCount{font-size:12px;background:rgba(90,200,140,.2);border-radius:20px;padding:2px 9px;color:#a8f0c4}
+  #clBarWrap{height:6px;background:rgba(255,255,255,.1);border-radius:4px;overflow:hidden;margin-bottom:9px}
+  #clBar{height:100%;width:0%;border-radius:4px;background:linear-gradient(90deg,#4fd18b,#a5f3c4);transition:width .4s}
+  .clItem{display:flex;align-items:center;gap:7px;padding:2.5px 0;opacity:.45;transition:.3s;font-size:12.5px}
+  .clItem.on{opacity:1}
+  .clItem .tick{width:15px;text-align:center;font-size:11px}
+  #langBtn{position:absolute;top:14px;right:14px;pointer-events:auto;cursor:pointer;
+    background:rgba(10,26,19,.86);border:1px solid rgba(120,220,160,.4);color:#c9f5d9;
+    border-radius:12px;padding:9px 16px;font-size:14px;font-weight:600;font-family:inherit;
+    transition:.2s;backdrop-filter:blur(7px)}
+  #langBtn:hover{background:rgba(45,110,78,.9);border-color:#7ee0a0}
+  #moveHint{position:absolute;bottom:14px;left:50%;transform:translateX(-50%);
+    color:#8dc9a6;font-size:12.5px;background:rgba(10,26,19,.7);padding:7px 16px;border-radius:20px;
+    border:1px solid rgba(120,220,160,.2);white-space:nowrap}
+
+  /* ---------- 交互提示 ---------- */
+  #prompt{position:fixed;left:50%;bottom:76px;transform:translate(-50%,20px);z-index:30;
+    background:rgba(12,32,23,.94);border:2px solid #6ee09b;color:#e2ffec;padding:11px 24px;
+    border-radius:14px;font-size:15px;font-weight:600;opacity:0;transition:.2s;pointer-events:none;
+    box-shadow:0 0 26px rgba(90,225,150,.35);white-space:nowrap}
+  #prompt.on{opacity:1;transform:translate(-50%,0)}
+  #prompt kbd{background:#6ee09b;color:#06210f;border-radius:6px;padding:1px 8px;font-family:inherit;
+    font-size:13px;margin:0 2px}
+
+  /* ---------- 讲解卡片 ---------- */
+  #cardOverlay{background:rgba(4,12,8,.78);backdrop-filter:blur(6px)}
+  #card{width:100%;max-width:700px;max-height:88vh;overflow-y:auto;background:#f7fbf8;
+    border-radius:22px;box-shadow:0 26px 70px rgba(0,0,0,.6);animation:pop .3s ease;
+    border:1px solid rgba(110,200,150,.5)}
+  #cardHead{position:sticky;top:0;background:linear-gradient(135deg,#1f4d36,#2f7d4d);
+    color:#eafff2;padding:20px 24px 18px;border-radius:22px 22px 0 0;z-index:2}
+  #cardHead .row{display:flex;align-items:center;gap:12px}
+  #cardEmoji{font-size:34px;line-height:1}
+  #cardName{font-size:23px;font-weight:700;letter-spacing:.5px}
+  #cardTag{font-size:13px;opacity:.85;margin-top:3px;font-style:italic}
+  #cardClose{position:absolute;top:14px;right:16px;cursor:pointer;background:rgba(255,255,255,.16);
+    border:none;color:#fff;width:32px;height:32px;border-radius:50%;font-size:17px;line-height:1;
+    font-family:inherit;transition:.2s}
+  #cardClose:hover{background:rgba(255,255,255,.34);transform:rotate(90deg)}
+  #cardBody{padding:20px 24px 24px}
+  .sec{margin-bottom:20px}
+  .sec h4{margin:0 0 8px;font-size:13px;letter-spacing:1.4px;text-transform:uppercase;
+    color:#2f7d4d;display:flex;align-items:center;gap:7px;font-weight:700}
+  .sec p{margin:0;font-size:15px;line-height:1.82;color:#22332a}
+  .sec ul{margin:0;padding-left:20px}
+  .sec li{font-size:14.5px;line-height:1.8;color:#22332a;margin-bottom:5px}
+  .whyBox{background:#eef7f1;border-left:4px solid #4fc98a;border-radius:0 12px 12px 0;
+    padding:13px 16px;font-size:15px;line-height:1.8;color:#1f3a2b}
+  .funcBox{background:#fff;border:1px solid #dbe9e1;border-radius:12px;padding:15px 17px}
+  #diagram{display:block;margin:0 auto;max-width:100%;max-height:360px;border:1px solid #d7e4dc;border-radius:12px;background:#fff}
+  #quizQ{font-size:15px;font-weight:600;color:#1f3a2b;margin:0 0 10px;line-height:1.6}
+  .quizOpt{display:block;width:100%;text-align:left;cursor:pointer;background:#fff;border:1.5px solid #d3e0d8;border-radius:10px;padding:10px 14px;margin-bottom:8px;font-size:14.5px;color:#2a3a30;transition:.15s;font-family:inherit}
+  .quizOpt:hover{border-color:#4fc98a;background:#f2faf5}
+  .quizOpt.correct{border-color:#2f9e57;background:#d9f2e2;color:#14532d}
+  .quizOpt.wrong{border-color:#d63a3a;background:#fde3e3;color:#7f1d1d}
+  .quizOpt.disabled{pointer-events:none;opacity:.85}
+  #quizFeedback{font-size:13.5px;line-height:1.7;margin-top:10px;padding:11px 13px;border-radius:10px;display:none}
+  #quizFeedback.correct{display:block;background:#d9f2e2;color:#14532d}
+  #quizFeedback.wrong{display:block;background:#fde3e3;color:#7f1d1d}
+  #cardLink{display:flex;align-items:center;justify-content:center;gap:10px;text-decoration:none;
+    background:linear-gradient(135deg,#e63946,#c1121f);color:#fff;border-radius:13px;
+    padding:14px 20px;font-size:15.5px;font-weight:700;transition:.22s;
+    box-shadow:0 6px 18px rgba(200,40,60,.32)}
+  #cardLink:hover{transform:translateY(-2px);box-shadow:0 11px 26px rgba(200,40,60,.45)}
+  .extNote{font-size:11.5px;color:#7c8f85;text-align:center;margin-top:8px}
+
+  /* ---------- 通关 ---------- */
+  #completeScreen{background:rgba(4,12,8,.85);backdrop-filter:blur(7px)}
+  #completeScreen .panel{text-align:center;background:linear-gradient(150deg,#1f4d36,#123324);
+    border:2px solid #6ee09b;border-radius:24px;padding:44px 40px;max-width:520px;
+    box-shadow:0 0 70px rgba(90,225,150,.35);animation:pop .45s ease}
+  #completeScreen h2{color:#c8ffdd;font-size:clamp(20px,4.4vw,28px);margin:0 0 14px}
+  #completeScreen p{color:#9fd9b8;font-size:15px;line-height:1.85;margin:0 0 28px}
+  .doneBtns{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+  .doneBtn{cursor:pointer;font-family:inherit;border-radius:12px;padding:12px 26px;font-size:15px;
+    font-weight:600;transition:.2s;border:2px solid #6ee09b;background:transparent;color:#c8ffdd}
+  .doneBtn:hover{background:rgba(110,224,155,.2);transform:translateY(-2px)}
+  .doneBtn.solid{background:#4fd18b;color:#06210f;border-color:#4fd18b}
+  .doneBtn.solid:hover{background:#6ee09b}
+
+  /* ---------- toast ---------- */
+  #toast{position:fixed;left:50%;top:22px;transform:translate(-50%,-24px);z-index:60;
+    background:rgba(200,60,70,.95);color:#fff;padding:11px 22px;border-radius:12px;font-size:14px;
+    font-weight:600;opacity:0;transition:.25s;pointer-events:none;box-shadow:0 8px 24px rgba(0,0,0,.4)}
+  #toast.on{opacity:1;transform:translate(-50%,0)}
+
+  @media(max-width:620px){
+    #checklist{min-width:0;font-size:11px;padding:9px 11px;max-width:52vw}
+    .clItem{font-size:11px}
+    #prompt{font-size:13px;padding:9px 16px;bottom:66px}
+    #moveHint{font-size:11px}
+  }
+</style>
+</head>
+<body>
+
+<canvas id="game"></canvas>
+
+<!-- ================= HUD ================= -->
+<div id="hud">
+  <div id="checklist">
+    <div class="clTitle"><span id="clTitleText">打卡清单</span><span id="clCount">0 / 8</span></div>
+    <div id="clBarWrap"><div id="clBar"></div></div>
+    <div id="clList"></div>
+  </div>
+  <button id="langBtn">EN</button>
+  <div id="moveHint">方向键 / WASD 移动 · 走近建筑按 E 或点击进入</div>
+</div>
+
+<div id="prompt"></div>
+<div id="toast"></div>
+
+<!-- ================= 语言选择 ================= -->
+<div id="langScreen" class="overlay">
+  <div class="panel">
+    <h2>PLANT CELL CITY</h2>
+    <h1 id="lsTitle">🌿 植物细胞之城</h1>
+    <p class="sub" id="lsSub">用一座城市，认识植物细胞里的各种细胞器。<br>请选择你想使用的语言：</p>
+    <div class="langBtns">
+      <button class="langBtn" data-lang="zh"><span class="flag">🇨🇳</span>中文<small>CHINESE</small></button>
+      <button class="langBtn" data-lang="en"><span class="flag">🇬🇧</span>English<small>英语</small></button>
+    </div>
+  </div>
+</div>
+
+<!-- ================= 讲解卡片 ================= -->
+<div id="cardOverlay" class="overlay hidden">
+  <div id="card">
+    <div id="cardHead">
+      <div class="row">
+        <div id="cardEmoji">🏛️</div>
+        <div>
+          <div id="cardName">—</div>
+          <div id="cardTag">—</div>
+        </div>
+      </div>
+      <button id="cardClose">✕</button>
+    </div>
+    <div id="cardBody">
+      <div class="sec">
+        <h4 id="hDiagram">🔬 结构示意图 Structure</h4>
+        <img id="diagram" alt="organelle image">
+      </div>
+      <div class="sec">
+        <h4 id="hWhy">🎨 为什么像这个建筑</h4>
+        <div class="whyBox" id="cardWhy"></div>
+      </div>
+      <div class="sec">
+        <h4 id="hFunc">📖 功能 Function</h4>
+        <div class="funcBox"><p id="cardFunc"></p></div>
+      </div>
+      <div class="sec">
+        <h4 id="hAp">🔬 AP 要点</h4>
+        <ul id="cardAp"></ul>
+      </div>
+      <div class="sec">
+        <h4 id="hQuiz">📝 AP 小测 Quiz</h4>
+        <div id="cardQuiz"></div>
+      </div>
+      <a id="cardLink" href="#" target="_blank" rel="noopener"></a>
+      <div class="extNote" id="extNote"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ================= 通关 ================= -->
+<div id="completeScreen" class="overlay hidden">
+  <div class="panel">
+    <div style="font-size:52px;line-height:1;margin-bottom:14px">🎉</div>
+    <h2 id="doneTitle"></h2>
+    <p id="doneBody"></p>
+    <div class="doneBtns">
+      <button class="doneBtn solid" id="againBtn"></button>
+      <button class="doneBtn" id="switchBtn"></button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* =========================================================================
+   植物细胞之城 — 单文件互动网页
+   8 个细胞器 · 中英双语 · 点击进楼 · Amoeba Sisters 视频
+   ========================================================================= */
+
+/* ---------------------- 1. 文本 / 翻译 ---------------------- */
+const T = {
+  zh: {
+    title: "🌿 植物细胞之城",
+    sub: "用一座城市，认识植物细胞里的各种细胞器。<br>请选择你想使用的语言：",
+    clTitle: "打卡清单",
+    hint: "方向键/WASD 移动 · 走近建筑按空格或点击进入",
+    prompt: (n) => `按 <kbd>空格</kbd> 或点击进入：${n}`,
+    moveCloser: "走近这座建筑才能进去哦",
+    hWhy: "🎨 为什么像这个建筑",
+    hDiagram: "🔬 结构示意图 Structure",
+    hFunc: "📖 功能 Function",
+    hAp: "🔬 AP 要点",
+    hQuiz: "📝 AP 小测 Quiz",
+    extNote: "链接会打开 YouTube，视频为英文讲解。",
+    close: "关闭",
+    doneTitle: "恭喜完成植物细胞一日游！",
+    doneBody: "你已经认识了这座城市里的核心“部门”。<br>它们分工合作，才让一个植物细胞正常运转。",
+    again: "重新游览",
+    switch: "切换语言"
+  },
+  en: {
+    title: "🌿 Plant Cell City",
+    sub: "Learn the organelles of a plant cell through a city.<br>Choose the language you want to use:",
+    clTitle: "Checklist",
+    hint: "Move with WASD/Arrows · Space or click to enter",
+    prompt: (n) => `Press <kbd>Space</kbd> or click to enter: ${n}`,
+    moveCloser: "Walk closer to this building to enter",
+    hWhy: "🎨 Why it is like this building",
+    hDiagram: "🔬 Structure Diagram",
+    hFunc: "📖 Function",
+    hAp: "🔬 AP Key Points",
+    hQuiz: "📝 AP Quiz",
+    extNote: "The link opens YouTube; the video is explained in English.",
+    close: "Close",
+    doneTitle: "You finished the Plant Cell City tour!",
+    doneBody: "You now know the core departments of this city.<br>They work together to keep a plant cell running.",
+    again: "Tour again",
+    switch: "Switch language"
+  }
+};
+
+/* ---------------------- 2. 八个细胞器数据 ---------------------- */
+const ORG = [
+  /* ---------- 1. 细胞核 ---------- */
+  {
+    id: "nucleus", type: "circle", x: 1300, y: 900, r: 130, emoji: "🏛️",
+    video: "https://www.youtube.com/results?search_query=Amoeba+Sisters+cell+nucleus",
+    zh: {
+      name: "细胞核 Nucleus",
+      tag: "「整座城的大脑」",
+      why: "它坐在城市正中心，握着整座城的指挥权。所有命令都从这里发出，别的部门都得听它的。",
+      func: "细胞核是细胞的指挥中心，储存着遗传物质 DNA（以染色质的形式存在），里面写着制造蛋白质的全部指令。它通过调控基因表达，决定要造什么蛋白质、什么时候造，从而指挥细胞的几乎所有活动。外面包着双层核膜，核膜上开着核孔，让 mRNA、核糖体亚基等物质有选择地进出。核内还有核仁，专门制造核糖体 RNA 并组装核糖体。",
+      ap: [
+        "双层核膜（nuclear envelope）+ 核孔：选择性运输",
+        "核仁（nucleolus）制造 rRNA 并组装核糖体亚基",
+        "染色质 = DNA + 组蛋白；分裂时浓缩成染色体",
+        "结构对应功能：核孔多 → 物质交换频繁"
+      ],
+      vLabel: "看 Amoeba Sisters 讲细胞核（英文）"
+    },
+    en: {
+      name: "Nucleus",
+      tag: "\u201CThe brain of the city\u201D",
+      why: "It sits at the very center of the city and holds command over everything. Every order is issued from here, and every other department answers to it.",
+      func: "The nucleus is the command center of the cell. It stores the cell's genetic material, DNA, organized as chromatin, which carries the full set of instructions for building proteins. By regulating gene expression \u2014 deciding which proteins are made and when \u2014 it directs almost all cellular activities. It is enclosed by a double membrane, the nuclear envelope, which is pierced by nuclear pores that allow the selective passage of materials such as mRNA and ribosomal subunits. Inside, the nucleolus makes ribosomal RNA and assembles ribosomal subunits.",
+      ap: [
+        "Double membrane (nuclear envelope) with nuclear pores for selective transport",
+        "Nucleolus makes rRNA and assembles ribosomal subunits",
+        "Chromatin = DNA + histone proteins; condenses into chromosomes during division",
+        "Structure fits function: many pores \u2192 frequent exchange with the cytoplasm"
+      ],
+      vLabel: "Watch Amoeba Sisters on the nucleus (English)"
+    }
+  },
+
+  /* ---------- 2. 叶绿体 ---------- */
+  {
+    id: "chloroplast", type: "rect", x: 310, y: 260, w: 390, h: 240, emoji: "🌱",
+    video: "https://www.youtube.com/results?search_query=Amoeba+Sisters+photosynthesis",
+    zh: {
+      name: "叶绿体 Chloroplast",
+      tag: "「城市边缘的太阳能农场」",
+      why: "它建在城墙边、阳光最好的位置，屋顶像一块块太阳能板，把阳光变成整座城市能用的“食物”。",
+      func: "叶绿体是光合作用的场所，把光能转变成储存在葡萄糖里的化学能，同时释放氧气。它用叶绿素等色素捕捉阳光，用这些能量把二氧化碳和水合成有机物。叶绿体是双层膜细胞器，内部有许多类囊体堆叠成的基粒（光反应就在类囊体膜上进行），周围是基质，卡尔文循环在基质中固定二氧化碳。叶绿体还自带环状 DNA 和核糖体，是内共生理论的证据，只存在于植物细胞和藻类中。",
+      ap: [
+        "双层膜 + 类囊体（thylakoid）堆成基粒（grana）+ 基质（stroma）",
+        "光反应在类囊体膜上；卡尔文循环在基质中进行",
+        "内共生理论：自带环状 DNA 和核糖体，源于被吞入的蓝细菌",
+        "植物细胞和藻类特有，动物细胞没有"
+      ],
+      vLabel: "看 Amoeba Sisters 讲光合作用（英文）"
+    },
+    en: {
+      name: "Chloroplast",
+      tag: "\u201CThe solar farm at the edge of the city\u201D",
+      why: "It is built along the city wall where the sunlight is strongest, and its roof looks like rows of solar panels that turn light into the food the whole city runs on.",
+      func: "The chloroplast is the site of photosynthesis, converting light energy into chemical energy stored in glucose while releasing oxygen. It captures sunlight using pigments, mainly chlorophyll, and uses that energy to build carbohydrates from carbon dioxide and water. It is a double-membraned organelle containing stacks of thylakoids, called grana, where the light reactions occur, surrounded by a fluid stroma where the Calvin cycle fixes CO\u2082 into sugars. Chloroplasts carry their own circular DNA and ribosomes, evidence of their endosymbiotic origin, and are found only in plant cells and algae.",
+      ap: [
+        "Double membrane + thylakoids stacked into grana + fluid stroma",
+        "Light reactions occur on the thylakoid membranes; the Calvin cycle occurs in the stroma",
+        "Endosymbiotic theory: own circular DNA and ribosomes, descended from an engulfed cyanobacterium",
+        "Found only in plant cells and algae \u2014 absent in animal cells"
+      ],
+      vLabel: "Watch Amoeba Sisters on photosynthesis (English)"
+    }
+  },
+
+  /* ---------- 3. 线粒体 ---------- */
+  {
+    id: "mitochondria", type: "rect", x: 310, y: 660, w: 330, h: 230, emoji: "⚡",
+    video: "https://www.youtube.com/results?search_query=Amoeba+Sisters+cellular+respiration",
+    zh: {
+      name: "线粒体 Mitochondria",
+      tag: "「24 小时不停供电的发电厂」",
+      why: "城市的每一盏灯、每一台机器都要用电，而线粒体就是那个把燃料烧成电的发电厂——只不过它的“电”是 ATP。",
+      func: "线粒体是细胞呼吸的主要场所，在有氧条件下把葡萄糖等有机物彻底分解，产生细胞通用的能量货币 ATP，并释放二氧化碳和水。它是双层膜细胞器：外膜光滑，内膜向内折叠形成嵴，极大地增加了反应的表面积，让更多产生 ATP 的装置能嵌在上面。内部的基质含有柠檬酸循环所需的酶，还含有自己的环状 DNA 和核糖体（内共生理论的证据）。因为它产生了细胞中绝大部分 ATP，所以被称为“细胞的动力工厂”。",
+      ap: [
+        "双层膜；内膜折叠成嵴（cristae）以增大表面积——典型的结构对应功能",
+        "糖酵解在细胞质基质；柠檬酸循环在基质；电子传递链在内膜",
+        "含自身环状 DNA 和核糖体，支持内共生理论",
+        "几乎所有真核细胞都有（植物、动物都有）"
+      ],
+      vLabel: "看 Amoeba Sisters 讲细胞呼吸（英文）"
+    },
+    en: {
+      name: "Mitochondria",
+      tag: "\u201CThe power plant running 24 hours a day\u201D",
+      why: "Every light and every machine in the city needs electricity, and the mitochondrion is the plant that burns fuel to make it \u2014 except its \u201Celectricity\u201D is ATP.",
+      func: "The mitochondrion is the main site of cellular respiration, breaking down organic molecules such as glucose in the presence of oxygen to produce ATP, the cell's main energy currency, along with carbon dioxide and water. It is a double-membraned organelle: the outer membrane is smooth while the inner membrane folds inward into cristae, greatly increasing the surface area available for the reactions that generate ATP. The interior fluid, the matrix, holds the enzymes of the Krebs cycle as well as its own circular DNA and ribosomes, evidence of an endosymbiotic origin. Because it produces most of the cell's ATP, it is nicknamed the powerhouse of the cell.",
+      ap: [
+        "Double membrane; inner membrane folded into cristae to increase surface area \u2014 a classic structure-fits-function example",
+        "Glycolysis in the cytosol; Krebs cycle in the matrix; electron transport chain on the inner membrane",
+        "Contains its own circular DNA and ribosomes, supporting the endosymbiotic theory",
+        "Present in nearly all eukaryotic cells \u2014 both plant and animal"
+      ],
+      vLabel: "Watch Amoeba Sisters on cellular respiration (English)"
+    }
+  },
+
+  /* ---------- 4. 细胞壁 ---------- */
+  {
+    id: "cellwall", type: "rect", x: 1300, y: 1680, w: 300, h: 110, emoji: "🧱",
+    video: "https://www.youtube.com/results?search_query=Amoeba+Sisters+cell+wall+plant+cell",
+    zh: {
+      name: "细胞壁 Cell Wall",
+      tag: "「围住整座城的外城墙」",
+      why: "它就是那一圈厚厚的城墙：不为别的，就是给城市一个硬壳，扛住外力、撑住形状。",
+      func: "细胞壁是植物细胞质膜外面的一层坚硬结构（细菌、真菌和部分原生生物也有），主要成分是纤维素这种强韧的多糖。它为细胞提供结构支撑、机械强度和固定的形状，帮助植物抵抗外力、直立生长。细胞壁是全透性的，水和溶质可以自由通过——这一点和质膜完全不同：质膜是选择透过性的，才是真正“把关”的边界。细胞壁本身不是活的结构，也不参与运输调控。",
+      ap: [
+        "主要成分是纤维素（cellulose）——一种结构多糖",
+        "全透性（permeable）vs 质膜的选择透过性（selectively permeable）——高频对比题",
+        "植物、真菌、细菌有；动物细胞没有",
+        "主要功能：支撑、保护、维持形状"
+      ],
+      vLabel: "看 Amoeba Sisters 讲细胞壁（英文）"
+    },
+    en: {
+      name: "Cell Wall",
+      tag: "\u201CThe outer wall that surrounds the whole city\u201D",
+      why: "It is that thick ring of wall: it does not do anything fancy, it simply gives the city a hard shell that resists outside forces and holds its shape.",
+      func: "The cell wall is a rigid layer located outside the plasma membrane in plant cells (and also in bacteria, fungi, and some protists). It is made mainly of cellulose, a strong structural polysaccharide, and provides structural support, mechanical strength, and a fixed shape, helping the plant resist mechanical stress and grow upright. The cell wall is fully permeable, so water and solutes pass through freely \u2014 quite unlike the plasma membrane, which is selectively permeable and is the structure that actually controls what enters and leaves the cell. The cell wall itself is not living and does not regulate transport.",
+      ap: [
+        "Made mainly of cellulose, a structural polysaccharide",
+        "Fully permeable cell wall vs selectively permeable plasma membrane \u2014 a very common comparison question",
+        "Present in plants, fungi, and bacteria; absent in animal cells",
+        "Main roles: support, protection, and maintaining shape"
+      ],
+      vLabel: "Watch Amoeba Sisters on the cell wall (English)"
+    }
+  },
+
+  /* ---------- 5. 中央液泡 ---------- */
+  {
+    id: "vacuole", type: "rect", x: 2290, y: 1060, w: 320, h: 350, emoji: "🛒",
+    video: "https://www.youtube.com/results?search_query=Amoeba+Sisters+plant+cell+vacuole",
+    zh: {
+      name: "中央液泡 Central Vacuole",
+      tag: "「占了半座城的中央大仓库」",
+      why: "它是植物城里最庞大的一栋建筑，几乎占掉一大片地——因为它的任务就是“装”，装满水，把整座城撑起来。",
+      func: "中央液泡是植物细胞特有、由单层膜包被的大型细胞器，可以占据细胞体积的大部分。它储存水、离子、糖类、色素和代谢废物，同时在维持膨压上起关键作用：当它吸水膨胀时，会把质膜压向细胞壁，使细胞和整株植物保持坚挺直立；一旦失水，细胞就会萎蔫。这个调节水分的作用是植物细胞中渗透作用的一个经典例子。",
+      ap: [
+        "植物细胞特有，单层膜（tonoplast）——与核、线粒体、叶绿体的双层膜区分",
+        "储存水、离子、糖、色素和废物",
+        "膨压（turgor pressure）：吸水 → 挺立；失水 → 萎蔫（wilting）",
+        "渗透（osmosis）与水势的经典例子"
+      ],
+      vLabel: "看 Amoeba Sisters 讲液泡（英文）"
+    },
+    en: {
+      name: "Central Vacuole",
+      tag: "\u201CThe giant warehouse that takes up half the city\u201D",
+      why: "It is the biggest building in the plant city, taking up a huge plot \u2014 because its whole job is to hold things, filling with water and holding the city upright.",
+      func: "The central vacuole is a large, single-membraned organelle unique to plant cells that can occupy most of the cell's volume. It stores water, ions, sugars, pigments, and metabolic waste, and it plays a major role in maintaining turgor pressure. As it takes up water and swells, it pushes the plasma membrane against the cell wall, keeping the cell and the whole plant firm and upright; when it loses water, the cell wilts. This water-regulating role is a classic example of osmosis in plant cells.",
+      ap: [
+        "Unique to plant cells; single membrane (tonoplast) \u2014 contrast with the double membranes of the nucleus, mitochondrion, and chloroplast",
+        "Stores water, ions, sugars, pigments, and waste",
+        "Turgor pressure: water in \u2192 firm; water out \u2192 wilting",
+        "A classic example of osmosis and water potential"
+      ],
+      vLabel: "Watch Amoeba Sisters on the vacuole (English)"
+    }
+  },
+
+  /* ---------- 6. 高尔基体 ---------- */
+  {
+    id: "golgi", type: "rect", x: 1300, y: 300, w: 340, h: 140, emoji: "📦",
+    video: "https://www.youtube.com/results?search_query=Amoeba+Sisters+Golgi+apparatus",
+    zh: {
+      name: "高尔基体 Golgi Apparatus",
+      tag: "「城市的分拣配送中心」",
+      why: "工厂造好的“货”（蛋白质）全都先送到这里，重新包装、贴上地址标签，再用小推车送出去——它就是物流中心。",
+      func: "高尔基体由一叠扁平的、有膜包被的囊（cisternae）组成，是细胞的分拣、修饰和打包中心。它在顺面（cis）接收来自内质网的蛋白质和脂质，对它们进行化学修饰（例如加上糖基），再把它们包装成小泡，从反面（trans）运出。这些小泡会把内容物送到质膜（用于分泌/外排）、溶酶体或其他目的地。高尔基体本身不合成蛋白质，它只负责加工和分派，是内质膜系统中承上启下的关键一环。",
+      ap: [
+        "由扁平膜囊（cisternae）堆叠而成，有方向性：顺面接收 → 反面送出",
+        "内质膜系统关键一环：粗面内质网 → 高尔基体 → 目的地",
+        "通过膜泡（vesicles）运输；与质膜融合即为外排（exocytosis）",
+        "不制造蛋白质，只做修饰、分拣、打包"
+      ],
+      vLabel: "看 Amoeba Sisters 讲高尔基体（英文）"
+    },
+    en: {
+      name: "Golgi Apparatus",
+      tag: "\u201CThe city's sorting and shipping center\u201D",
+      why: "Every finished product from the factories is sent here first, to be rewrapped, labeled with an address, and carted off \u2014 it is the logistics hub.",
+      func: "The Golgi apparatus is a stack of flattened, membrane-bound sacs called cisternae, and it acts as the cell's sorting, modifying, and packaging center. It receives proteins and lipids from the endoplasmic reticulum at its cis (receiving) face, chemically modifies them \u2014 for example by adding sugar groups \u2014 and packages them into vesicles that bud from the trans (shipping) face. Those vesicles deliver their contents to the plasma membrane for secretion (exocytosis), to lysosomes, or to other destinations. The Golgi does not synthesize proteins itself; it processes, sorts, and routes them, making it a key link in the endomembrane system.",
+      ap: [
+        "Stacks of flattened cisternae with directionality: cis face receives, trans face ships",
+        "Key link in the endomembrane system: rough ER \u2192 Golgi \u2192 destination",
+        "Transports materials in vesicles; fusion with the plasma membrane is exocytosis",
+        "Does not make proteins \u2014 it modifies, sorts, and packages them"
+      ],
+      vLabel: "Watch Amoeba Sisters on the Golgi apparatus (English)"
+    }
+  },
+
+  /* ---------- 7. 粗面内质网 ---------- */
+  {
+    id: "rougher", type: "rect", x: 310, y: 1060, w: 430, h: 180, emoji: "🏭",
+    video: "https://www.youtube.com/results?search_query=Amoeba+Sisters+endoplasmic+reticulum",
+    zh: {
+      name: "粗面内质网 Rough ER",
+      tag: "「一片弯弯曲曲的加工车间」",
+      why: "它像一片铺开的厂房和管道，把运进来的“半成品”进一步加工、折叠成能用的成品。",
+      func: "粗面内质网是一片由膜包被的囊和管道组成的网络，表面附满了核糖体，所以看起来“粗糙”。它是分泌蛋白、膜蛋白以及要送往溶酶体的蛋白质合成和折叠的场所：附在它表面的核糖体先合成多肽链，多肽链进入内质网腔中折叠，并可能加上糖基。它是内质膜系统的第一站，加工好的蛋白质随后被送往高尔基体。作为对比，滑面内质网没有核糖体，负责合成脂质和激素、解毒以及储存钙离子。",
+      ap: [
+        "表面附有核糖体，所以“粗糙”——这是直接考点",
+        "合成并折叠分泌蛋白、膜蛋白、溶酶体蛋白",
+        "内质膜系统的起点：粗面内质网 → 高尔基体 → 目的地",
+        "对比滑面内质网：无核糖体，合成脂质/激素、解毒、储存 Ca²⁺"
+      ],
+      vLabel: "看 Amoeba Sisters 讲内质网（英文）"
+    },
+    en: {
+      name: "Rough ER",
+      tag: "\u201CA sprawling processing factory of pipes and channels\u201D",
+      why: "It looks like an open factory floor full of pipes, where incoming half-finished parts are further processed and folded into usable products.",
+      func: "The rough endoplasmic reticulum is a network of membrane-enclosed sacs and channels whose surface is studded with ribosomes, giving it a rough appearance. It is the site where secreted proteins, membrane proteins, and proteins destined for lysosomes are synthesized and folded. Ribosomes on its surface build polypeptide chains, which are threaded into the ER lumen where they fold and may gain carbohydrate modifications. It is the first station of the endomembrane system, and the finished proteins are then shipped to the Golgi apparatus. By contrast, the smooth ER lacks ribosomes and synthesizes lipids and hormones, detoxifies drugs and poisons, and stores calcium ions.",
+      ap: [
+        "Studded with ribosomes, which is why it looks \u201Crough\u201D \u2014 a direct test point",
+        "Synthesizes and folds secreted proteins, membrane proteins, and lysosomal proteins",
+        "First stage of the endomembrane system: rough ER \u2192 Golgi \u2192 destination",
+        "Contrast with smooth ER: no ribosomes; makes lipids/hormones, detoxifies, stores Ca\u00B2\u207A"
+      ],
+      vLabel: "Watch Amoeba Sisters on the endoplasmic reticulum (English)"
+    }
+  },
+
+  /* ---------- 8. 核糖体 ---------- */
+  {
+    id: "ribosome", type: "rect", roam: true, x: 810, y: 250, w: 260, h: 190, emoji: "🧷",
+    video: "https://www.youtube.com/results?search_query=Amoeba+Sisters+protein+synthesis+ribosome",
+    zh: {
+      name: "核糖体 Ribosome",
+      tag: "「满城都是的微型装配机」",
+      why: "它们是城里数量最多、个头最小的机器，走到哪儿就在哪儿开工——只要有图纸（mRNA），就能把零件（氨基酸）装成产品（蛋白质）。",
+      func: "核糖体是极小的、没有膜包被的结构，负责蛋白质合成（翻译）。每个核糖体由一个大亚基和一个小亚基组成，成分是核糖体 RNA 和蛋白质；它读取 mRNA 上的碱基序列，按正确的顺序把氨基酸连接起来。核糖体可以游离在细胞质基质中（制造细胞内部使用的蛋白质），也可以附着在粗面内质网上（制造要送往质膜、溶酶体或分泌出去的蛋白质）。因为它没有膜，所以不属于膜包被细胞器。线粒体和叶绿体内部的核糖体比细胞质中的更小，这是支持内共生理论的证据之一。",
+      ap: [
+        "没有膜！——不属于膜包被细胞器，这是最常考的区别",
+        "由 rRNA + 蛋白质组成，分大、小两个亚基",
+        "游离核糖体 → 细胞内部使用的蛋白；附着核糖体 → 分泌/膜/溶酶体蛋白",
+        "线粒体和叶绿体内的核糖体更小 → 内共生理论证据"
+      ],
+      vLabel: "看 Amoeba Sisters 讲蛋白质合成（英文）"
+    },
+    en: {
+      name: "Ribosome",
+      tag: "\u201CTiny assembly machines found all over the city\u201D",
+      why: "They are the smallest and most numerous machines in the city, starting work wherever they are \u2014 give them a blueprint (mRNA) and they snap parts (amino acids) into a product (protein).",
+      func: "Ribosomes are tiny, non-membranous structures that carry out protein synthesis, or translation. Each ribosome is made of a large subunit and a small subunit composed of ribosomal RNA and protein, and it reads the base sequence of mRNA to link amino acids in the correct order. Ribosomes may be free in the cytosol, making proteins used inside the cell, or attached to the rough ER, making proteins destined for the plasma membrane, lysosomes, or secretion. Because they have no membrane, they are not classified as membrane-bound organelles. Ribosomes inside mitochondria and chloroplasts are smaller than those in the cytoplasm, which is one piece of evidence supporting the endosymbiotic theory.",
+      ap: [
+        "No membrane! Not a membrane-bound organelle \u2014 the most frequently tested distinction",
+        "Made of rRNA plus protein, with a large and a small subunit",
+        "Free ribosomes \u2192 proteins used inside the cell; bound ribosomes \u2192 secreted, membrane, or lysosomal proteins",
+        "Ribosomes inside mitochondria and chloroplasts are smaller \u2192 evidence for endosymbiosis"
+      ],
+      vLabel: "Watch Amoeba Sisters on protein synthesis (English)"
+    }
+  },
+
+  /* ---------- 9. 滑面内质网 ---------- */
+  {
+    id: "smoother", type: "rect", x: 310, y: 1500, w: 300, h: 170, emoji: "🧪",
+    video: "https://www.youtube.com/results?search_query=Amoeba+Sisters+endoplasmic+reticulum",
+    zh: {
+      name: "滑面内质网 Smooth ER",
+      tag: "「城里的化工厂 / 解毒中心」",
+      why: "它没有装配工（核糖体），专门负责造「油类」材料和给城市消毒，像一座化学工厂。",
+      func: "滑面内质网是没有核糖体附着的一类内质网。它主要负责合成脂质，包括磷脂和类固醇激素（如性激素），并参与糖类代谢。在肝细胞中，它承担解毒作用，把药物和毒物转化掉；在肌肉细胞中，它还储存钙离子，参与肌肉收缩。与粗面内质网「造蛋白」不同，滑面内质网「造脂质、解毒、存钙」。",
+      ap: [
+        "无核糖体——与粗面内质网的核心区别",
+        "合成脂质：磷脂、类固醇激素；参与糖代谢",
+        "解毒（肝细胞）、储存 Ca²⁺（肌肉细胞）",
+        "肝细胞、性腺、肌肉细胞中特别发达——结构对应功能"
+      ],
+      vLabel: "看 Amoeba Sisters 讲内质网（英文）"
+    },
+    en: {
+      name: "Smooth ER",
+      tag: "\u201CThe city's chemical plant and detox center\u201D",
+      why: "It has no assembly workers (ribosomes); instead it manufactures oily materials and detoxifies the city, like a chemical plant.",
+      func: "The smooth endoplasmic reticulum is the portion of the ER that lacks ribosomes. It synthesizes lipids, including phospholipids and steroid hormones such as sex hormones, and takes part in carbohydrate metabolism. In liver cells it detoxifies drugs and poisons, and in muscle cells it stores calcium ions used in muscle contraction. Unlike the rough ER, which makes proteins, the smooth ER makes lipids, detoxifies, and stores calcium.",
+      ap: [
+        "Lacks ribosomes \u2014 the key difference from rough ER",
+        "Synthesizes lipids: phospholipids and steroid hormones; carbohydrate metabolism",
+        "Detoxification in liver cells; Ca\u00B2\u207A storage in muscle cells",
+        "Abundant in liver, gonads, and muscle \u2014 structure fits function"
+      ],
+      vLabel: "Watch Amoeba Sisters on the endoplasmic reticulum (English)"
+    }
+  },
+
+  /* ---------- 10. 溶酶体 ---------- */
+  {
+    id: "lysosome", type: "rect", x: 1790, y: 1500, w: 250, h: 170, emoji: "🗑️",
+    video: "https://www.youtube.com/results?search_query=Amoeba+Sisters+lysosome",
+    zh: {
+      name: "溶酶体 Lysosome",
+      tag: "「城市的垃圾处理 / 回收厂」",
+      why: "它是城里的回收站，把废弃的旧零件和外来垃圾统统分解掉，变废为宝。",
+      func: "溶酶体是单层膜包被的囊状细胞器，内部充满水解酶，在酸性环境下把大分子（蛋白质、核酸、多糖、脂质）分解成小分子。它能消化细胞吞噬进来的物质（如细菌），也能降解自身衰老或损坏的细胞器（自噬），还在细胞程序性死亡（凋亡）中起作用。溶酶体主要见于动物细胞。",
+      ap: [
+        "单层膜 + 大量水解酶，内部呈酸性",
+        "自噬（autophagy）：降解自身废旧细胞器",
+        "吞噬（phagocytosis）：消化吞入的细菌等",
+        "主要存在于动物细胞；植物细胞少有"
+      ],
+      vLabel: "看 Amoeba Sisters 讲溶酶体（英文）"
+    },
+    en: {
+      name: "Lysosome",
+      tag: "\u201CThe city's waste treatment and recycling plant\u201D",
+      why: "It is the city's recycling center, breaking down worn-out parts and incoming trash and turning them into reusable material.",
+      func: "The lysosome is a single-membraned sac filled with hydrolytic enzymes that, in an acidic environment, break down macromolecules (proteins, nucleic acids, polysaccharides, and lipids) into smaller units. It digests material brought into the cell by phagocytosis, degrades the cell's own worn-out organelles through autophagy, and plays a role in programmed cell death (apoptosis). Lysosomes are found mainly in animal cells.",
+      ap: [
+        "Single membrane + hydrolytic enzymes; acidic interior",
+        "Autophagy: recycling the cell's own worn-out organelles",
+        "Phagocytosis: digesting engulfed material such as bacteria",
+        "Mainly in animal cells; rare in plant cells"
+      ],
+      vLabel: "Watch Amoeba Sisters on lysosomes (English)"
+    }
+  },
+
+  /* ---------- 11. 过氧化物酶体 ---------- */
+  {
+    id: "peroxisome", type: "rect", x: 2290, y: 1500, w: 210, h: 150, emoji: "🚰",
+    video: "https://www.youtube.com/results?search_query=Amoeba+Sisters+peroxisome",
+    zh: {
+      name: "过氧化物酶体 Peroxisome",
+      tag: "「城市的小型净水 / 解毒站」",
+      why: "它是个小站点，专门处理有毒副产物，把「有害的过氧化氢」变成安全的水。",
+      func: "过氧化物酶体是单层膜的小细胞器，含有一类氧化酶，能把脂肪酸和氨基酸氧化分解，同时产生有毒的过氧化氢（H₂O₂）；随后它又利用过氧化氢酶（catalase）把 H₂O₂ 转变成水和氧气，从而解毒。它还能帮助降解酒精等毒素。过氧化物酶体不属于内质膜系统，是靠分裂自我增殖的。",
+      ap: [
+        "氧化酶产生 H₂O₂，过氧化氢酶（catalase）将其分解成水",
+        "脂肪酸、氨基酸氧化；解毒（酒精等）",
+        "单层膜；靠自身分裂增殖",
+        "不属于内质膜系统——常考区别"
+      ],
+      vLabel: "看 Amoeba Sisters 讲过氧化物酶体（英文）"
+    },
+    en: {
+      name: "Peroxisome",
+      tag: "\u201CThe city's small water-treatment and detox station\u201D",
+      why: "It is a small station that handles toxic by-products, turning harmful hydrogen peroxide into safe water.",
+      func: "The peroxisome is a small, single-membraned organelle containing oxidase enzymes that break down fatty acids and amino acids, producing toxic hydrogen peroxide (H\u2082O\u2082) as a by-product. It then uses the enzyme catalase to convert that H\u2082O\u2082 into water and oxygen, detoxifying the cell. Peroxisomes also help break down toxins such as alcohol. They are not part of the endomembrane system and multiply by dividing.",
+      ap: [
+        "Oxidases produce H\u2082O\u2082; catalase breaks it down into water",
+        "Oxidizes fatty acids and amino acids; detoxifies alcohol",
+        "Single membrane; reproduces by dividing",
+        "Not part of the endomembrane system \u2014 a common test point"
+      ],
+      vLabel: "Watch Amoeba Sisters on peroxisomes (English)"
+    }
+  },
+
+  /* ---------- 12. 细胞骨架 ---------- */
+  {
+    id: "cytoskeleton", type: "rect", x: 1790, y: 250, w: 300, h: 150, emoji: "🛣️",
+    video: "https://www.youtube.com/results?search_query=Amoeba+Sisters+cytoskeleton",
+    zh: {
+      name: "细胞骨架 Cytoskeleton",
+      tag: "「贯穿全城的道路 / 高架系统」",
+      why: "城市的路网本身——它既是支撑城市形状的骨架，也是货物（囊泡）运输的轨道。",
+      func: "细胞骨架是由蛋白质纤维组成的网络，包括微管、微丝和中间纤维三类。它给细胞提供结构支撑、维持形状、固定细胞器的位置，并让细胞能移动。微管还是「分子马达」运输囊泡的轨道，也构成细胞分裂时的纺锤体；微丝（肌动蛋白）参与肌肉收缩和变形运动。整座城的「道路」就是这个细胞骨架。",
+      ap: [
+        "三类：微管（microtubules）、微丝/肌动蛋白（microfilaments）、中间纤维（intermediate filaments）",
+        "微管 = 囊泡运输轨道 + 纺锤体（细胞分裂）",
+        "微丝 = 肌肉收缩、变形运动",
+        "支持、形状、细胞器定位"
+      ],
+      vLabel: "看 Amoeba Sisters 讲细胞骨架（英文）"
+    },
+    en: {
+      name: "Cytoskeleton",
+      tag: "\u201CThe roads and highways that run through the whole city\u201D",
+      why: "It is the road network itself \u2014 the framework that supports the city's shape and the tracks along which cargo (vesicles) is transported.",
+      func: "The cytoskeleton is a network of protein fibers that includes three types: microtubules, microfilaments, and intermediate filaments. It provides structural support, maintains cell shape, anchors organelles in place, and enables cell movement. Microtubules act as tracks along which motor proteins carry vesicles and form the spindle during cell division; microfilaments (actin) drive muscle contraction and amoeboid movement. The roads of this city represent that cytoskeleton.",
+      ap: [
+        "Three types: microtubules, microfilaments (actin), and intermediate filaments",
+        "Microtubules = tracks for vesicle transport + the mitotic spindle",
+        "Microfilaments = muscle contraction and amoeboid movement",
+        "Support, shape, and positioning of organelles"
+      ],
+      vLabel: "Watch Amoeba Sisters on the cytoskeleton (English)"
+    }
+  },
+
+  /* ---------- 13. 细胞膜 ---------- */
+  {
+    id: "membrane", type: "rect", x: 1300, y: 150, w: 300, h: 100, emoji: "🚧",
+    video: "https://www.youtube.com/results?search_query=Amoeba+Sisters+cell+membrane",
+    zh: {
+      name: "细胞膜 Plasma Membrane",
+      tag: "「城门的海关 / 安检站」",
+      why: "它是城最里层的一道「活」关卡，决定谁能进城、谁不能——不像外墙只挡硬闯。",
+      func: "细胞膜是由磷脂双分子层构成的选择透过性边界，膜上嵌着各种蛋白质。它控制物质进出细胞，既能通过被动运输（扩散、渗透）让小分子自由穿过，也能通过主动运输消耗能量逆浓度搬运。膜上的蛋白质还负责信号接收和细胞识别。这个「流动镶嵌模型」的膜才是真正把关的边界，而细胞壁只是坚硬的外壳。",
+      ap: [
+        "磷脂双分子层（phospholipid bilayer）",
+        "流动镶嵌模型（fluid mosaic model）：膜蛋白漂浮在脂质中",
+        "选择透过性（selectively permeable）：被动/主动运输",
+        "膜蛋白：运输、信号、细胞识别"
+      ],
+      vLabel: "看 Amoeba Sisters 讲细胞膜（英文）"
+    },
+    en: {
+      name: "Plasma Membrane",
+      tag: "\u201CThe customs and security checkpoint at the city gate\u201D",
+      why: "It is the innermost, living gate of the city that decides who may enter \u2014 unlike the outer wall, which only stops force.",
+      func: "The plasma membrane is a selectively permeable boundary made of a phospholipid bilayer with proteins embedded in it. It controls what enters and leaves the cell: small molecules pass by passive transport (diffusion and osmosis), while active transport uses energy to move substances against their gradient. Membrane proteins also receive signals and mediate cell recognition. This fluid-mosaic membrane is the structure that actually regulates traffic, while the cell wall is only a rigid shell.",
+      ap: [
+        "Phospholipid bilayer",
+        "Fluid mosaic model: proteins float within the lipid bilayer",
+        "Selectively permeable: passive and active transport",
+        "Membrane proteins: transport, signaling, cell recognition"
+      ],
+      vLabel: "Watch Amoeba Sisters on the cell membrane (English)"
+    }
+  }
+];
+
+/* ---------------------- 3. 世界与工具 ---------------------- */
+const WORLD = { w: 2600, h: 1800, wall: 60 };
+const cv = document.getElementById("game");
+const ctx = cv.getContext("2d");
+const view = { w: 0, h: 0 };
+const cam  = { x: 0, y: 0 };
+let lang = "zh";
+let cardOpen = false;
+let activeId = null;
+let currentOrg = null;
+let completed = false;
+let activeRiboDot = null;
+const visited = new Set();
+
+const TAU = Math.PI * 2;
+const clamp = (v, a, b) => v < a ? a : (v > b ? b : v);
+
+function rr(c, x, y, w, h, r) {
+  r = Math.min(r, w / 2, h / 2);
+  c.beginPath();
+  c.moveTo(x + r, y);
+  c.lineTo(x + w - r, y);
+  c.quadraticCurveTo(x + w, y, x + w, y + r);
+  c.lineTo(x + w, y + h - r);
+  c.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  c.lineTo(x + r, y + h);
+  c.quadraticCurveTo(x, y + h, x, y + h - r);
+  c.lineTo(x, y + r);
+  c.quadraticCurveTo(x, y, x + r, y);
+  c.closePath();
+}
+
+function mix(hex, amt) {
+  const n = parseInt(hex.slice(1), 16);
+  let r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
+  if (amt > 0) { r += (255 - r) * amt; g += (255 - g) * amt; b += (255 - b) * amt; }
+  else { r *= (1 + amt); g *= (1 + amt); b *= (1 + amt); }
+  return "rgb(" + Math.round(r) + "," + Math.round(g) + "," + Math.round(b) + ")";
+}
+
+const CAN_FILTER = (function () {
+  try { ctx.filter = "blur(2px)"; const ok = ctx.filter === "blur(2px)"; ctx.filter = "none"; return ok; }
+  catch (e) { return false; }
+})();
+
+const H3D = {
+  nucleus: 58, chloroplast: 46, mitochondria: 52, cellwall: 40,
+  vacuole: 58, golgi: 42, rougher: 46, ribosome: 30,
+  smoother: 46, lysosome: 44, peroxisome: 40, cytoskeleton: 40, membrane: 34
+};
+const LABEL_LIFT = { mitochondria: 70 };
+
+let seed = 20240513;
+function rnd() { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; }
+
+function footBox(o) {
+  return o.type === "circle"
+    ? { x0: o.x - o.r, x1: o.x + o.r, y0: o.y - o.r, y1: o.y + o.r }
+    : { x0: o.x - o.w / 2, x1: o.x + o.w / 2, y0: o.y - o.h / 2, y1: o.y + o.h / 2 };
+}
+function baseY(o) { return o.type === "circle" ? o.y + o.r : o.y + o.h / 2; }
+function visualTop(o) { return footBox(o).y0 - (H3D[o.id] || 40); }
+
+function shadowRect(x, y, w, h, r, blur, alpha) {
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.fillStyle = "#16240f";
+  if (CAN_FILTER) ctx.filter = "blur(" + blur + "px)";
+  rr(ctx, x - w / 2 + 11, y - h / 2 + 15, w, h, r);
+  ctx.fill();
+  ctx.restore();
+}
+function shadowCircle(x, y, r, blur, alpha) {
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.fillStyle = "#16240f";
+  if (CAN_FILTER) ctx.filter = "blur(" + blur + "px)";
+  ctx.beginPath(); ctx.arc(x + 11, y + 15, r, 0, TAU); ctx.fill();
+  ctx.restore();
+}
+
+/* 斜视角墙体：p0/p1 为墙底两个角，pH 为"向上"向量 */
+function wallQuad(p0, p1, pH, cBot, cTop) {
+  ctx.beginPath();
+  ctx.moveTo(p0[0], p0[1]);
+  ctx.lineTo(p1[0], p1[1]);
+  ctx.lineTo(p1[0] + pH[0], p1[1] + pH[1]);
+  ctx.lineTo(p0[0] + pH[0], p0[1] + pH[1]);
+  ctx.closePath();
+  const g = ctx.createLinearGradient(p0[0], p0[1], p0[0] + pH[0], p0[1] + pH[1]);
+  g.addColorStop(0, cBot); g.addColorStop(1, cTop);
+  ctx.fillStyle = g; ctx.fill();
+}
+/* 在墙面上铺一排排窗户 */
+function wallWindows(p0, p1, pH, cols, rows, col, colAlt) {
+  const wx = p1[0] - p0[0], wy = p1[1] - p0[1];
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const lit = colAlt && ((c * 3 + r * 5) % 5 < 2);
+      ctx.fillStyle = lit ? colAlt : col;
+      const u0 = (c + 0.3) / cols, u1 = (c + 0.7) / cols;
+      const v0 = 0.2 + ((r + 0.2) / rows) * 0.62;
+      const v1 = 0.2 + ((r + 0.78) / rows) * 0.62;
+      const a = [p0[0] + u0 * wx + v0 * pH[0], p0[1] + u0 * wy + v0 * pH[1]];
+      const b = [p0[0] + u1 * wx + v0 * pH[0], p0[1] + u1 * wy + v0 * pH[1]];
+      const cc = [p0[0] + u1 * wx + v1 * pH[0], p0[1] + u1 * wy + v1 * pH[1]];
+      const d = [p0[0] + u0 * wx + v1 * pH[0], p0[1] + u0 * wy + v1 * pH[1]];
+      ctx.beginPath();
+      ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.lineTo(cc[0], cc[1]); ctx.lineTo(d[0], d[1]);
+      ctx.closePath(); ctx.fill();
+    }
+  }
+}
+
+const OBLIQ = 0.32;
+function box3d(x, cyBase, w, h, H, roofHex, sideHex, r, noWin) {
+  const dx = H * OBLIQ;
+  const fTL = [x - w / 2, cyBase - h], fTR = [x + w / 2, cyBase - h];
+  const fBL = [x - w / 2, cyBase],     fBR = [x + w / 2, cyBase];
+  const pH = [dx, -H];
+
+  /* 右墙（东面，最暗） */
+  wallQuad(fBR, fTR, pH, mix(sideHex, -0.32), mix(sideHex, -0.06));
+  /* 前墙（南面） */
+  wallQuad(fBL, fBR, pH, mix(sideHex, -0.22), mix(sideHex, 0.16));
+  /* 墙面窗户 */
+  if (!noWin) {
+    const cols = Math.max(2, Math.round(w / 46));
+    const rows = Math.max(1, Math.round(H / 30));
+    wallWindows(fBL, fBR, pH, cols, rows, "rgba(124,172,214,.62)", "rgba(255,198,110,.88)");
+  }
+  /* 墙脚接地阴影 */
+  ctx.save();
+  ctx.globalAlpha = 0.32; ctx.fillStyle = "#000";
+  if (CAN_FILTER) ctx.filter = "blur(4px)";
+  ctx.fillRect(x - w / 2, cyBase - 5, w + dx, 7);
+  ctx.restore();
+
+  /* 屋顶 */
+  const rL = x - w / 2 + dx, rT = cyBase - h - H;
+  const rg = ctx.createLinearGradient(rL, rT, rL + w, rT + h);
+  rg.addColorStop(0, mix(roofHex, 0.24)); rg.addColorStop(1, mix(roofHex, -0.12));
+  rr(ctx, rL, rT, w, h, r);
+  ctx.fillStyle = rg; ctx.fill();
+  /* 女儿墙：屋顶边缘一圈高光/暗边 */
+  ctx.strokeStyle = "rgba(255,255,255,.55)"; ctx.lineWidth = 2.2;
+  ctx.beginPath(); ctx.moveTo(rL + r, rT + 1.2); ctx.lineTo(rL + w - r, rT + 1.2); ctx.stroke();
+  ctx.strokeStyle = "rgba(0,0,0,.2)"; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(rL + r, rT + h - 1.2); ctx.lineTo(rL + w - r, rT + h - 1.2); ctx.stroke();
+  /* 屋顶与墙体的转角高光 */
+  ctx.strokeStyle = "rgba(255,255,255,.4)"; ctx.lineWidth = 1.6;
+  ctx.beginPath(); ctx.moveTo(fTL[0], fTL[1]); ctx.lineTo(fTL[0] + dx, fTL[1] - H); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(fTR[0], fTR[1]); ctx.lineTo(fTR[0] + dx, fTR[1] - H); ctx.stroke();
+
+  return { yRoof: rT, yTop: cyBase - H, yBot: cyBase, cx: rL + w / 2, w, h, left: rL, right: rL + w, dx };
+}
+
+function cylinder(cx, cyBase, rad, height, ryRatio, topHex, sideHex) {
+  const ry = rad * ryRatio;
+  const yTop = cyBase - height;
+  const sg = ctx.createLinearGradient(cx - rad, 0, cx + rad, 0);
+  sg.addColorStop(0, mix(sideHex, -0.28)); sg.addColorStop(0.34, mix(sideHex, 0.18));
+  sg.addColorStop(0.62, mix(sideHex, 0.02)); sg.addColorStop(1, mix(sideHex, -0.34));
+  ctx.fillStyle = sg;
+  ctx.fillRect(cx - rad, yTop, rad * 2, height);
+  ctx.beginPath(); ctx.ellipse(cx, cyBase, rad, ry, 0, 0, Math.PI);
+  ctx.fillStyle = mix(sideHex, -0.34); ctx.fill();
+  const tg = ctx.createRadialGradient(cx - rad * 0.35, yTop - ry * 0.5, rad * 0.08, cx, yTop, rad * 1.15);
+  tg.addColorStop(0, mix(topHex, 0.42)); tg.addColorStop(0.65, topHex); tg.addColorStop(1, mix(topHex, -0.2));
+  ctx.beginPath(); ctx.ellipse(cx, yTop, rad, ry, 0, 0, TAU);
+  ctx.fillStyle = tg; ctx.fill();
+  ctx.strokeStyle = "rgba(30,45,70,.3)"; ctx.lineWidth = 1.5; ctx.stroke();
+  return yTop;
+}
+
+/* ---- 城市路网（纯网格） ---- */
+const CITY = { cx: 1300, cy: 900, plazaR: 300 };
+const GRID_X = [60, 560, 1060, 1540, 2040, 2540];
+const GRID_Y = [60, 460, 860, 1260, 1740];
+const ROAD_W = 34;
+const RING_R = CITY.plazaR + 18;
+
+function nearRoad(x, y) {
+  for (let i = 1; i < GRID_X.length - 1; i++) if (Math.abs(x - GRID_X[i]) < ROAD_W / 2 + 14) return true;
+  for (let j = 1; j < GRID_Y.length - 1; j++) if (Math.abs(y - GRID_Y[j]) < ROAD_W / 2 + 14) return true;
+  if (Math.abs(Math.hypot(x - CITY.cx, y - CITY.cy) - RING_R) < 30) return true;
+  return false;
+}
+
+const TREES = [];
+(function () {
+  let guard = 0;
+  while (TREES.length < 54 && guard++ < 20000) {
+    const x = WORLD.wall + 70 + rnd() * (WORLD.w - WORLD.wall * 2 - 140);
+    const y = WORLD.wall + 70 + rnd() * (WORLD.h - WORLD.wall * 2 - 140);
+    let bad = false;
+    if (Math.hypot(x - CITY.cx, y - CITY.cy) < CITY.plazaR + 46) bad = true;
+    if (!bad && nearRoad(x, y)) bad = true;
+    if (!bad) for (const o of ORG) {
+      const b = footBox(o);
+      if (x > b.x0 - 70 && x < b.x1 + 70 && y > b.y0 - 120 && y < b.y1 + 70) { bad = true; break; }
+    }
+    if (!bad) for (const t of TREES) { if (Math.hypot(x - t.x, y - t.y) < 58) { bad = true; break; } }
+    if (!bad) TREES.push({ x, y, r: 14 + rnd() * 10, tone: rnd() });
+  }
+})();
+
+const PARTICLES = [];
+for (let i = 0; i < 80; i++) {
+  PARTICLES.push({
+    x: WORLD.wall + rnd() * (WORLD.w - WORLD.wall * 2),
+    y: WORLD.wall + rnd() * (WORLD.h - WORLD.wall * 2),
+    r: 1.3 + rnd() * 2.6, sp: 0.1 + rnd() * 0.34, ph: rnd() * TAU
+  });
+}
+
+/* ---- 静态地面预渲染 ---- */
+const groundCv = document.createElement("canvas");
+groundCv.width = WORLD.w;
+groundCv.height = WORLD.h;
+const g2 = groundCv.getContext("2d");
+
+function drawTree(g, tr) {
+  g.save(); g.globalAlpha = 0.24; g.fillStyle = "#1b2a12";
+  if (CAN_FILTER) g.filter = "blur(6px)";
+  g.beginPath(); g.ellipse(tr.x + 9, tr.y + 8, tr.r * 1.1, tr.r * 0.62, 0, 0, TAU); g.fill();
+  g.filter = "none"; g.restore();
+  g.fillStyle = "#7d5a34"; g.fillRect(tr.x - 3.5, tr.y - 6, 7, 16);
+  const dark = tr.tone > 0.5 ? "#3f7a37" : "#47853c";
+  const mid  = tr.tone > 0.5 ? "#5c9e4c" : "#65aa52";
+  const lit  = tr.tone > 0.5 ? "#8cc471" : "#96cd7b";
+  g.fillStyle = dark;
+  g.beginPath(); g.arc(tr.x - tr.r * 0.5, tr.y - tr.r * 0.2, tr.r * 0.78, 0, TAU); g.fill();
+  g.beginPath(); g.arc(tr.x + tr.r * 0.5, tr.y - tr.r * 0.26, tr.r * 0.74, 0, TAU); g.fill();
+  g.fillStyle = mid; g.beginPath(); g.arc(tr.x, tr.y - tr.r * 0.62, tr.r, 0, TAU); g.fill();
+  g.fillStyle = lit;
+  g.beginPath(); g.arc(tr.x - tr.r * 0.34, tr.y - tr.r * 0.88, tr.r * 0.6, 0, TAU); g.fill();
+  g.beginPath(); g.arc(tr.x + tr.r * 0.4, tr.y - tr.r * 0.55, tr.r * 0.42, 0, TAU); g.fill();
+  g.globalAlpha = 0.5; g.fillStyle = "#dff3ab";
+  g.beginPath(); g.arc(tr.x - tr.r * 0.45, tr.y - tr.r * 1.05, tr.r * 0.26, 0, TAU); g.fill();
+  g.globalAlpha = 1;
+}
+
+function drawHouse(g, x, y, w, h, t) {
+  const BODY = ["#d6c2a4", "#d2c3ae", "#c9bfab", "#d4c2a8", "#cebda4", "#dbc7ab"];
+  const ROOF = ["#a34a3e", "#7d8a9a", "#8a6b4a", "#5b7a5c", "#9a6a44", "#b06b4a", "#6b7f8f", "#8d5a4a"];
+  const body = BODY[Math.floor(t * BODY.length) % BODY.length];
+  const roof = ROOF[Math.floor(t * ROOF.length * 1.7) % ROOF.length];
+  const H = 16 + t * 16;
+  const dx = H * 0.3;
+  const cyBase = y + h / 2;
+  const fBLx = x - w / 2, fBRx = x + w / 2, fTRy = cyBase - h;
+
+  /* 影子 */
+  g.globalAlpha = 0.2; g.fillStyle = "#26301c";
+  g.fillRect(fBLx + 5, fTRy + 6, w + dx, h); g.globalAlpha = 1;
+  /* 右墙 */
+  g.beginPath();
+  g.moveTo(fBRx, cyBase); g.lineTo(fBRx, fTRy);
+  g.lineTo(fBRx + dx, fTRy - H); g.lineTo(fBRx + dx, cyBase - H);
+  g.closePath(); g.fillStyle = mix(body, -0.34); g.fill();
+  /* 前墙 */
+  g.beginPath();
+  g.moveTo(fBLx, cyBase); g.lineTo(fBRx, cyBase);
+  g.lineTo(fBRx + dx, cyBase - H); g.lineTo(fBLx + dx, cyBase - H);
+  g.closePath(); g.fillStyle = mix(body, -0.12); g.fill();
+  /* 窗户 */
+  g.fillStyle = "rgba(118,166,214,.62)";
+  const cols = Math.max(2, Math.round(w / 22)), rows = Math.max(1, Math.round(H / 20));
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const u0 = (c + 0.3) / cols, u1 = (c + 0.7) / cols;
+      const v0 = 0.2 + ((r + 0.22) / rows) * 0.58, v1 = 0.2 + ((r + 0.78) / rows) * 0.58;
+      const a = [fBLx + u0 * w + v0 * dx, cyBase + v0 * (-H)];
+      const b = [fBLx + u1 * w + v0 * dx, cyBase + v0 * (-H)];
+      const cc = [fBLx + u1 * w + v1 * dx, cyBase + v1 * (-H)];
+      const d = [fBLx + u0 * w + v1 * dx, cyBase + v1 * (-H)];
+      g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.lineTo(cc[0], cc[1]); g.lineTo(d[0], d[1]);
+      g.closePath(); g.fill();
+    }
+  }
+  /* 屋顶 */
+  const rT = fTRy - H;
+  g.fillStyle = mix(roof, 0.14);
+  g.fillRect(fBLx + dx, rT, w, h);
+  g.fillStyle = "rgba(255,255,255,.35)";
+  g.fillRect(fBLx + dx, rT, w, 2.5);
+  g.fillStyle = "rgba(0,0,0,.16)";
+  g.fillRect(fBLx + dx, rT + h - 2, w, 2);
+  /* 烟囱 */
+  if (t > 0.62) { g.fillStyle = "#9c8272"; g.fillRect(x + w * 0.18 + dx, rT - 7, 6, 8); }
+  /* 屋顶水箱 */
+  if (t > 0.78) {
+    const tx2 = x + w * 0.68 + dx;
+    g.fillStyle = "#7a5c40";
+    g.beginPath(); g.ellipse(tx2, rT - 5, 5.5, 4, 0, 0, TAU); g.fill();
+    g.fillStyle = "#94734f"; g.fillRect(tx2 - 5.5, rT - 11, 11, 6);
+    g.beginPath(); g.ellipse(tx2, rT - 11, 5.5, 4, 0, 0, TAU); g.fill();
+  }
+}
+function drawTower(g, x, y, w, h, t) {
+  const H = 66 + t * 34;
+  const dx = H * 0.3;
+  const cyBase = y + h;
+  const fTRy = y;
+  /* 影子 */
+  g.globalAlpha = 0.2; g.fillStyle = "#1e2a16";
+  if (CAN_FILTER) g.filter = "blur(5px)";
+  g.fillRect(x + 6, y + 8, w + dx, h); g.filter = "none"; g.globalAlpha = 1;
+  /* 右墙 */
+  g.beginPath();
+  g.moveTo(x + w, cyBase); g.lineTo(x + w, fTRy);
+  g.lineTo(x + w + dx, fTRy - H); g.lineTo(x + w + dx, cyBase - H);
+  g.closePath(); g.fillStyle = t > 0.5 ? "#8e9aa8" : "#7c8895"; g.fill();
+  /* 前墙 */
+  g.beginPath();
+  g.moveTo(x, cyBase); g.lineTo(x + w, cyBase);
+  g.lineTo(x + w + dx, cyBase - H); g.lineTo(x + dx, cyBase - H);
+  g.closePath(); g.fillStyle = t > 0.5 ? "#c2cad4" : "#aab4c0"; g.fill();
+  /* 窗格 */
+  g.fillStyle = "rgba(126,180,220,.75)";
+  const cols = Math.max(2, Math.round(w / 16)), rows = Math.max(3, Math.round(H / 22));
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const u0 = (c + 0.28) / cols, u1 = (c + 0.72) / cols;
+      const v0 = 0.06 + ((r + 0.2) / rows) * 0.86, v1 = 0.06 + ((r + 0.78) / rows) * 0.86;
+      const a = [x + u0 * w + v0 * dx, cyBase - v0 * H];
+      const b = [x + u1 * w + v0 * dx, cyBase - v0 * H];
+      const cc = [x + u1 * w + v1 * dx, cyBase - v1 * H];
+      const d = [x + u0 * w + v1 * dx, cyBase - v1 * H];
+      g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.lineTo(cc[0], cc[1]); g.lineTo(d[0], d[1]);
+      g.closePath(); g.fill();
+    }
+  }
+  /* 屋顶 + 女儿墙 */
+  const rT = fTRy - H;
+  g.fillStyle = t > 0.5 ? "#7d8a9a" : "#6b7a8a";
+  g.fillRect(x + dx, rT, w, h);
+  g.fillStyle = "rgba(255,255,255,.4)"; g.fillRect(x + dx, rT, w, 2.5);
+  /* 天线 + 红色信标灯 */
+  const ax = x + w / 2 + dx;
+  g.strokeStyle = "#5a6670"; g.lineWidth = 2;
+  g.beginPath(); g.moveTo(ax, rT); g.lineTo(ax, rT - 16); g.stroke();
+  g.save(); g.globalAlpha = 0.4; g.fillStyle = "#ff8a96";
+  if (CAN_FILTER) g.filter = "blur(3px)";
+  g.beginPath(); g.arc(ax, rT - 17, 5, 0, TAU); g.fill(); g.restore();
+  g.fillStyle = "#ff5a6a";
+  g.beginPath(); g.arc(ax, rT - 17, 2.6, 0, TAU); g.fill();
+}
+function blockOccupied(bx0, by0, bx1, by1) {
+  const cx = clamp(CITY.cx, bx0, bx1), cy = clamp(CITY.cy, by0, by1);
+  if (Math.hypot(cx - CITY.cx, cy - CITY.cy) < CITY.plazaR + 56) return true;
+  for (const o of ORG) {
+    if (o.roam) continue;
+    const b = footBox(o);
+    if (bx0 < b.x1 + 26 && b.x0 - 26 < bx1 && by0 < b.y1 + 26 && b.y0 - 26 < by1) return true;
+  }
+  return false;
+}
+function fillBlock(g, bx0, by0, bx1, by1) {
+  const bw = 46, bh = 40;
+  for (let yy = by0 + 22; yy < by1 - bh - 12; yy += bh + 9) {
+    for (let xx = bx0 + 22; xx < bx1 - bw - 12; xx += bw + 9) {
+      const jx = xx + (rnd() - 0.5) * 5, jy = yy + (rnd() - 0.5) * 5;
+      if (rnd() < 0.07) drawTower(g, jx - 4, jy - 26, 44, 72, rnd());
+      else drawHouse(g, jx, jy, bw, bh, rnd());
+    }
+  }
+}
+function drawRoadLine(g, x0, y0, x1, y1) {
+  g.lineCap = "round";
+  g.strokeStyle = "#cfd1c0"; g.lineWidth = ROAD_W + 16;
+  g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke();
+  g.strokeStyle = "#a9aa9c"; g.lineWidth = ROAD_W + 6;
+  g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke();
+  g.strokeStyle = "#5f5f59"; g.lineWidth = ROAD_W;
+  g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke();
+  g.strokeStyle = "#86867e"; g.lineWidth = ROAD_W - 6; g.stroke();
+  g.save(); g.setLineDash([16, 18]); g.strokeStyle = "rgba(255,255,255,.5)"; g.lineWidth = 2.4; g.stroke(); g.restore();
+}
+function buildGround() {
+  seed = 20240513;
+  const g = g2;
+  const t = WORLD.wall, iw = WORLD.w - t * 2, ih = WORLD.h - t * 2;
+  const bg = g.createLinearGradient(t, t, WORLD.w - t, WORLD.h - t);
+  bg.addColorStop(0, "#c8dda0"); bg.addColorStop(0.45, "#d6e7b3"); bg.addColorStop(1, "#b8d091");
+  g.fillStyle = bg; g.fillRect(t, t, iw, ih);
+  for (let i = 0; i < 36; i++) {
+    const bx = t + rnd() * iw, by = t + rnd() * ih, br = 140 + rnd() * 280;
+    const rg = g.createRadialGradient(bx, by, 0, bx, by, br);
+    rg.addColorStop(0, rnd() > 0.5 ? "rgba(243,252,214,.5)" : "rgba(146,178,106,.26)");
+    rg.addColorStop(1, "rgba(255,255,255,0)");
+    g.fillStyle = rg; g.beginPath(); g.arc(bx, by, br, 0, TAU); g.fill();
+  }
+  g.lineCap = "round";
+  for (let i = 0; i < 3200; i++) {
+    const gx = t + rnd() * iw, gy = t + rnd() * ih;
+    g.strokeStyle = rnd() > 0.45 ? "rgba(118,150,82,.42)" : "rgba(240,250,205,.5)";
+    g.lineWidth = 1.3; const hh = 3 + rnd() * 4;
+    g.beginPath(); g.moveTo(gx, gy); g.lineTo(gx - 1.4, gy - hh); g.moveTo(gx, gy); g.lineTo(gx + 1.6, gy - hh * 0.85); g.stroke();
+  }
+  const px = CITY.cx, py = CITY.cy;
+  const pg = g.createRadialGradient(px - 70, py - 90, 30, px, py, CITY.plazaR + 90);
+  pg.addColorStop(0, "#f2ecd9"); pg.addColorStop(0.7, "#e2d7bc"); pg.addColorStop(1, "rgba(226,215,188,0)");
+  g.fillStyle = pg; g.beginPath(); g.arc(px, py, CITY.plazaR + 90, 0, TAU); g.fill();
+  g.strokeStyle = "rgba(176,161,126,.42)"; g.lineWidth = 2;
+  for (let ring = 170; ring <= CITY.plazaR - 10; ring += 65) { g.beginPath(); g.arc(px, py, ring, 0, TAU); g.stroke(); }
+  for (let a = 0; a < 30; a++) {
+    const ang = a / 30 * TAU;
+    g.beginPath(); g.moveTo(px + Math.cos(ang) * 170, py + Math.sin(ang) * 170);
+    g.lineTo(px + Math.cos(ang) * (CITY.plazaR - 10), py + Math.sin(ang) * (CITY.plazaR - 10)); g.stroke();
+  }
+  for (let i = 1; i < GRID_X.length - 1; i++) drawRoadLine(g, GRID_X[i], t, GRID_X[i], WORLD.h - t);
+  for (let j = 1; j < GRID_Y.length - 1; j++) drawRoadLine(g, t, GRID_Y[j], WORLD.w - t, GRID_Y[j]);
+  g.strokeStyle = "#5f5f59"; g.lineWidth = ROAD_W; g.beginPath(); g.arc(px, py, RING_R, 0, TAU); g.stroke();
+  g.strokeStyle = "#86867e"; g.lineWidth = ROAD_W - 6; g.stroke();
+  g.save(); g.setLineDash([16, 18]); g.strokeStyle = "rgba(255,255,255,.5)"; g.lineWidth = 2.4; g.stroke(); g.restore();
+  for (let i = 0; i < GRID_X.length - 1; i++) for (let j = 0; j < GRID_Y.length - 1; j++) {
+    const bx0 = GRID_X[i], bx1 = GRID_X[i + 1], by0 = GRID_Y[j], by1 = GRID_Y[j + 1];
+    if (blockOccupied(bx0, by0, bx1, by1)) continue;
+    fillBlock(g, bx0, by0, bx1, by1);
+  }
+  for (const tr of TREES) drawTree(g, tr);
+  for (let i = 0; i < 130; i++) {
+    const sx = t + rnd() * iw, sy = t + rnd() * ih;
+    g.fillStyle = "rgba(158,166,138,.4)";
+    g.beginPath(); g.ellipse(sx, sy, 2.2 + rnd() * 3, 1.5 + rnd() * 2, 0, 0, TAU); g.fill();
+  }
+  /* 城墙 */
+  ctx.save();
+  ctx.fillStyle = "#4a6b3c"; ctx.fillRect(0, 0, WORLD.w, t); ctx.fillRect(0, WORLD.h - t, WORLD.w, t);
+  ctx.fillRect(0, 0, t, WORLD.h); ctx.fillRect(WORLD.w - t, 0, t, WORLD.h);
+  ctx.strokeStyle = "rgba(30,52,24,.7)"; ctx.lineWidth = 2;
+  for (let yy = 0; yy <= WORLD.h; yy += 23) { ctx.beginPath(); ctx.moveTo(0, yy); ctx.lineTo(WORLD.w, yy); ctx.stroke(); }
+  ctx.strokeStyle = "rgba(150,235,180,.5)"; ctx.lineWidth = 5; ctx.strokeRect(t - 2.5, t - 2.5, WORLD.w - t * 2 + 5, WORLD.h - t * 2 + 5);
+  ctx.restore();
+}
+buildGround();
+
+/* ---- 主角 ---- */
+const player = { x: 1300, y: 560, r: 17, t: 0, faceX: 1, moved: false };
+const keys = Object.create(null);
+
+function collides(x, y) {
+  const r = player.r, wl = WORLD.wall;
+  if (x - r < wl || x + r > WORLD.w - wl || y - r < wl || y + r > WORLD.h - wl) return true;
+  for (const o of ORG) {
+    if (o.roam) continue;
+    if (o.type === "circle") { if (Math.hypot(x - o.x, y - o.y) < o.r + r) return true; }
+    else if (Math.abs(x - o.x) < o.w / 2 + r && Math.abs(y - o.y) < o.h / 2 + r) return true;
+  }
+  return false;
+}
+function moveBy(dx, dy) {
+  const steps = Math.max(1, Math.ceil(Math.max(Math.abs(dx), Math.abs(dy)) / 1.2));
+  const sx = dx / steps, sy = dy / steps;
+  for (let i = 0; i < steps; i++) {
+    if (!collides(player.x + sx, player.y)) player.x += sx;
+    if (!collides(player.x, player.y + sy)) player.y += sy;
+  }
+}
+function distTo(o) {
+  if (o.type === "circle") return Math.hypot(player.x - o.x, player.y - o.y) - o.r;
+  const dx = Math.max(Math.abs(player.x - o.x) - o.w / 2, 0);
+  const dy = Math.max(Math.abs(player.y - o.y) - o.h / 2, 0);
+  return Math.hypot(dx, dy);
+}
+const REACH = 82;
+function findActive() {
+  let best = null, bd = 1e9;
+  for (const o of ORG) {
+    if (o.roam) continue;
+    const d = distTo(o);
+    if (d < REACH && d < bd) { bd = d; best = o; }
+  }
+  return best;
+}
+function pointInOrg(wx, wy) {
+  for (const o of ORG) {
+    if (o.roam) continue;
+    if (o.type === "circle") { if (Math.hypot(wx - o.x, wy - o.y) < o.r + 18) return o; }
+    else if (Math.abs(wx - o.x) < o.w / 2 + 18 && Math.abs(wy - o.y) < o.h / 2 + 18) return o;
+  }
+  return null;
+}
+
+/* ---- 游离核糖体 ---- */
+const RIBOSOMES = [];
+(function () {
+  for (let i = 0; i < 44; i++) {
+    RIBOSOMES.push({
+      x: WORLD.wall + 90 + rnd() * (WORLD.w - WORLD.wall * 2 - 180),
+      y: WORLD.wall + 90 + rnd() * (WORLD.h - WORLD.wall * 2 - 180),
+      vx: (rnd() - 0.5) * 1.2, vy: (rnd() - 0.5) * 1.2, r: 7 + rnd() * 4, ph: rnd() * TAU
+    });
+  }
+})();
+function updateRibosomes(dt) {
+  const k = dt / 16.67, wl = WORLD.wall;
+  for (const rb of RIBOSOMES) {
+    rb.vx += (rnd() - 0.5) * 0.06; rb.vy += (rnd() - 0.5) * 0.06;
+    const sp = Math.hypot(rb.vx, rb.vy);
+    if (sp > 1.5) { rb.vx *= 1.5 / sp; rb.vy *= 1.5 / sp; }
+    if (sp < 0.3 && sp > 0.001) { rb.vx *= 0.3 / sp; rb.vy *= 0.3 / sp; }
+    rb.x += rb.vx * k; rb.y += rb.vy * k;
+    if (rb.x < wl + rb.r) { rb.x = wl + rb.r; rb.vx = Math.abs(rb.vx); }
+    if (rb.x > WORLD.w - wl - rb.r) { rb.x = WORLD.w - wl - rb.r; rb.vx = -Math.abs(rb.vx); }
+    if (rb.y < wl + rb.r) { rb.y = wl + rb.r; rb.vy = Math.abs(rb.vy); }
+    if (rb.y > WORLD.h - wl - rb.r) { rb.y = WORLD.h - wl - rb.r; rb.vy = -Math.abs(rb.vy); }
+    for (const o of ORG) {
+      if (o.roam) continue;
+      if (o.type === "circle") {
+        const dx = rb.x - o.x, dy = rb.y - o.y, dd = Math.hypot(dx, dy), min = o.r + rb.r;
+        if (dd < min && dd > 0.001) { rb.x = o.x + dx / dd * min; rb.y = o.y + dy / dd * min; }
+      } else {
+        const hx = o.w / 2 + rb.r, hy = o.h / 2 + rb.r;
+        if (Math.abs(rb.x - o.x) < hx && Math.abs(rb.y - o.y) < hy) {
+          const px = Math.abs(rb.x - o.x) / hx, py = Math.abs(rb.y - o.y) / hy;
+          if (px > py) rb.x = o.x + (rb.x > o.x ? hx : -hx); else rb.y = o.y + (rb.y > o.y ? hy : -hy);
+        }
+      }
+    }
+  }
+}
+function drawRibosomeDot(rb, time, glow) {
+  const bob = Math.sin(time * 0.004 + rb.ph) * 1.6;
+  if (glow) {
+    ctx.save(); ctx.globalAlpha = 0.45 + Math.sin(time * 0.005) * 0.3;
+    ctx.strokeStyle = "#7cf0a8"; ctx.lineWidth = 2.5;
+    ctx.beginPath(); ctx.arc(rb.x, rb.y + bob, rb.r + 8, 0, TAU); ctx.stroke(); ctx.restore();
+  }
+  ctx.save(); ctx.globalAlpha = 0.2; ctx.fillStyle = "#0a1408";
+  if (CAN_FILTER) ctx.filter = "blur(3px)";
+  ctx.beginPath(); ctx.ellipse(rb.x + 3, rb.y + rb.r * 0.75, rb.r * 0.9, rb.r * 0.4, 0, 0, TAU); ctx.fill(); ctx.restore();
+  const g = ctx.createRadialGradient(rb.x - 2, rb.y + bob - 2, 1, rb.x, rb.y + bob, rb.r + 1);
+  g.addColorStop(0, "#3a3a3a"); g.addColorStop(1, "#0f0f0f");
+  ctx.beginPath(); ctx.arc(rb.x, rb.y + bob, rb.r, 0, TAU); ctx.fillStyle = g; ctx.fill();
+  ctx.beginPath(); ctx.arc(rb.x - 1.5, rb.y + bob - rb.r * 0.68, rb.r * 0.6, 0, TAU);
+  ctx.fillStyle = "#262626"; ctx.fill();
+  ctx.strokeStyle = "#050505"; ctx.lineWidth = 1; ctx.stroke();
+  ctx.globalAlpha = 0.45; ctx.fillStyle = "#fff";
+  ctx.beginPath(); ctx.arc(rb.x - rb.r * 0.35, rb.y + bob - rb.r * 0.5, rb.r * 0.2, 0, TAU); ctx.fill();
+  ctx.globalAlpha = 1;
+}
+function pointInRibo(wx, wy) {
+  for (const rb of RIBOSOMES) { if (Math.hypot(wx - rb.x, wy - rb.y) < rb.r + 6) return rb; }
+  return null;
+}
+function nearestRibo() {
+  let best = null, bd = 1e9;
+  for (const rb of RIBOSOMES) {
+    const d = Math.hypot(player.x - rb.x, player.y - rb.y) - rb.r;
+    if (d < REACH && d < bd) { bd = d; best = rb; }
+  }
+  return best;
+}
+
+/* ---- 汽车 ---- */
+const CAR_COLORS = ["#e4572e", "#3f7d9c", "#e0b23a", "#7a9c5c", "#c94f6d", "#4a6b9c", "#b26b3a", "#8a5f8f"];
+const CARS = [];
+(function () {
+  let id = 0;
+  for (let j = 1; j < GRID_Y.length - 1; j++) {
+    for (const ln of [[-1, 1], [1, -1]]) {
+      CARS.push({ h: true, line: GRID_Y[j], lane: ln[0], dir: ln[1], pos: 100 + rnd() * (WORLD.w - 200), sp: 1.3 + rnd() * 1.4, color: CAR_COLORS[id % CAR_COLORS.length] }); id++;
+    }
+  }
+  for (let i = 1; i < GRID_X.length - 1; i++) {
+    for (const ln of [[-1, 1], [1, -1]]) {
+      CARS.push({ h: false, line: GRID_X[i], lane: ln[0], dir: ln[1], pos: 100 + rnd() * (WORLD.h - 200), sp: 1.3 + rnd() * 1.4, color: CAR_COLORS[id % CAR_COLORS.length] }); id++;
+    }
+  }
+})();
+function updateCars(dt) {
+  const k = dt / 16.67;
+  for (const c of CARS) {
+    c.pos += c.dir * c.sp * k;
+    const lo = WORLD.wall + 44, hi = (c.h ? WORLD.w : WORLD.h) - WORLD.wall - 44;
+    if (c.pos > hi) c.pos = lo;
+    if (c.pos < lo) c.pos = hi;
+  }
+}
+function drawCar(c) {
+  const off = c.lane * 18;
+  const x = c.h ? c.pos : c.line + off, y = c.h ? c.line + off : c.pos;
+  const w = c.h ? 30 : 15, h = c.h ? 15 : 30;
+  ctx.save(); ctx.globalAlpha = 0.25; ctx.fillStyle = "#0a1408";
+  if (CAN_FILTER) ctx.filter = "blur(3px)";
+  ctx.beginPath(); ctx.ellipse(x + 3, y + 4, w / 2, h / 2, 0, 0, TAU); ctx.fill(); ctx.restore();
+  rr(ctx, x - w / 2, y - h / 2, w, h, 4);
+  ctx.fillStyle = c.color; ctx.fill();
+  ctx.strokeStyle = "rgba(0,0,0,.28)"; ctx.lineWidth = 1.2; ctx.stroke();
+  ctx.fillStyle = "rgba(215,238,255,.9)";
+  if (c.h) ctx.fillRect(x - w * 0.05, y - h / 2 + 3, w * 0.3, h - 6);
+  else ctx.fillRect(x - w / 2 + 3, y - h / 2 + h * 0.35, w - 6, h * 0.3);
+}
+
+function drawFountains(time) {
+  for (const f of [{ x: 1120, y: 900 }, { x: 1480, y: 900 }]) {
+    ctx.beginPath(); ctx.ellipse(f.x, f.y, 32, 28, 0, 0, TAU);
+    ctx.fillStyle = "#8fd0ea"; ctx.fill();
+    ctx.strokeStyle = "#5f96b8"; ctx.lineWidth = 3; ctx.stroke();
+    const t = (time * 0.0012) % 1;
+    for (let i = 0; i < 3; i++) {
+      const prog = (t + i / 3) % 1, r = 8 + prog * 22;
+      ctx.globalAlpha = 0.55 * (1 - prog); ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.ellipse(f.x, f.y, r, r * 0.88, 0, 0, TAU); ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+    ctx.beginPath(); ctx.arc(f.x, f.y, 6, 0, TAU); ctx.fillStyle = "#eaf8ff"; ctx.fill();
+  }
+}
+function drawParticles(time) {
+  for (const p of PARTICLES) {
+    const ox = Math.sin(time * 0.0048 * p.sp * 8 + p.ph) * 17, oy = Math.cos(time * 0.004 * p.sp * 8 + p.ph) * 17;
+    ctx.globalAlpha = 0.34;
+    ctx.beginPath(); ctx.arc(p.x + ox, p.y + oy, p.r, 0, TAU); ctx.fillStyle = "#ffffff"; ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+}
+
+/* ---- 建筑 ---- */
+function drawBuildingShape(o) {
+  switch (o.id) {
+    case "nucleus": return drawNucleus(o);
+    case "chloroplast": return drawChloroplast(o);
+    case "mitochondria": return drawMitochondria(o);
+    case "cellwall": return drawCellWallBuilding(o);
+    case "vacuole": return drawVacuole(o);
+    case "golgi": return drawGolgi(o);
+    case "rougher": return drawRoughER(o);
+    case "smoother": return drawSmoothER(o);
+    case "lysosome": return drawLysosome(o);
+    case "peroxisome": return drawPeroxisome(o);
+    case "cytoskeleton": return drawCytoskeleton(o);
+    case "membrane": return drawMembrane(o);
+  }
+}
+
+function drawNucleus(o) {
+  const x = o.x, y = o.y, r = o.r;
+  shadowCircle(x, y, r, 18, 0.46);
+  const layers = [
+    { rad: r, h: 16, top: "#dbe8f7", side: "#93aecb" },
+    { rad: r * 0.885, h: 15, top: "#e9f1fb", side: "#a4bcd6" },
+    { rad: r * 0.775, h: 15, top: "#f3f8ff", side: "#b4c8e0" }
+  ];
+  let yb = y + r * 0.94;
+  for (const L of layers) { cylinder(x, yb, L.rad, L.h, 0.94, L.top, L.side); yb -= L.h; }
+  const platR = r * 0.775, platY = yb;
+  const pg = ctx.createRadialGradient(x - platR * 0.4, platY - 20, 6, x, platY, platR * 1.1);
+  pg.addColorStop(0, "#ffffff"); pg.addColorStop(1, "#cfdcee");
+  ctx.beginPath(); ctx.ellipse(x, platY, platR, platR * 0.94, 0, 0, TAU); ctx.fillStyle = pg; ctx.fill();
+  for (let i = 0; i < 30; i++) {
+    const a = i / 30 * TAU, pr = r * 0.985;
+    const pxp = x + Math.cos(a) * pr, pyp = y + r * 0.94 + Math.sin(a) * pr * 0.94 - 8;
+    ctx.beginPath(); ctx.arc(pxp, pyp, 4.2, 0, TAU); ctx.fillStyle = "#5c81b6"; ctx.fill();
+    ctx.strokeStyle = "rgba(255,255,255,.6)"; ctx.lineWidth = 1.4; ctx.stroke();
+  }
+  cylinder(x + platR * 0.34, platY - platR * 0.18, platR * 0.22, 26, 0.72, "#93b0da", "#7593c2");
+  const colR = platR * 0.86, colCount = 18, domeR = platR * 0.62, domeY = platY - 6;
+  for (let i = 0; i < colCount; i++) {
+    const a = i / colCount * TAU;
+    const cxp = x + Math.cos(a) * colR, cyp = domeY + Math.sin(a) * colR * 0.94;
+    if (Math.sin(a) < -0.25) continue;
+    const cg = ctx.createLinearGradient(cxp - 5, 0, cxp + 5, 0);
+    cg.addColorStop(0, "#a8bcd6"); cg.addColorStop(0.4, "#f4f8ff"); cg.addColorStop(1, "#9fb4d0");
+    ctx.fillStyle = cg; ctx.fillRect(cxp - 5, cyp - 40, 10, 40);
+    ctx.beginPath(); ctx.ellipse(cxp, cyp - 40, 5, 2, 0, 0, TAU); ctx.fillStyle = "#ffffff"; ctx.fill();
+  }
+  const dg = ctx.createRadialGradient(x - domeR * 0.4, domeY - domeR * 0.8, domeR * 0.1, x, domeY, domeR * 1.3);
+  dg.addColorStop(0, "#ffffff"); dg.addColorStop(0.55, "#eaf2fc"); dg.addColorStop(1, "#b3c6de");
+  ctx.beginPath(); ctx.ellipse(x, domeY, domeR, domeR * 0.94, 0, Math.PI, TAU); ctx.closePath(); ctx.fillStyle = dg; ctx.fill();
+  ctx.strokeStyle = "rgba(140,165,200,.5)"; ctx.lineWidth = 2; ctx.stroke();
+  ctx.strokeStyle = "rgba(150,175,208,.5)"; ctx.lineWidth = 1.6;
+  for (let i = -3; i <= 3; i++) {
+    ctx.beginPath(); ctx.moveTo(x, domeY - domeR * 0.94);
+    ctx.quadraticCurveTo(x + i * domeR * 0.4, domeY - domeR * 0.5, x + i * domeR * 0.42, domeY); ctx.stroke();
+  }
+  cylinder(x, domeY - domeR * 0.72, 13, 22, 0.6, "#ffffff", "#c9d8ea");
+  ctx.strokeStyle = "#8fa6c0"; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.moveTo(x, domeY - domeR * 0.72 - 22); ctx.lineTo(x, domeY - domeR * 0.72 - 60); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(x, domeY - domeR * 0.72 - 60); ctx.lineTo(x + 30, domeY - domeR * 0.72 - 50); ctx.lineTo(x, domeY - domeR * 0.72 - 36);
+  ctx.closePath(); ctx.fillStyle = "#e63946"; ctx.fill();
+  /* 台阶 */
+  const stepBase = y + r * 0.94;
+  for (let s = 0; s < 3; s++) {
+    const sw = platR * 0.9 - s * 26, syy = stepBase + s * 9;
+    rr(ctx, x - sw / 2, syy, sw, 9, 2);
+    ctx.fillStyle = s % 2 ? "#d6e0f0" : "#c4d1e6"; ctx.fill();
+  }
+  /* 三角楣 pediment */
+  const pw = platR * 0.62, ph = 24, px0 = x - pw / 2, py0 = stepBase + 28;
+  ctx.beginPath();
+  ctx.moveTo(px0 - 8, py0 - ph); ctx.lineTo(x, py0 - ph - 20); ctx.lineTo(x + pw + 8, py0 - ph);
+  ctx.closePath();
+  ctx.fillStyle = "#eef4fc"; ctx.fill();
+  ctx.strokeStyle = "#9db4d2"; ctx.lineWidth = 2.5; ctx.stroke();
+  /* 门廊立柱 */
+  for (let i = 0; i < 4; i++) {
+    const cx = px0 + 16 + i * (pw - 32) / 3;
+    const cg = ctx.createLinearGradient(cx - 4, 0, cx + 4, 0);
+    cg.addColorStop(0, "#a8bcd6"); cg.addColorStop(0.4, "#f4f8ff"); cg.addColorStop(1, "#9fb4d0");
+    ctx.fillStyle = cg; ctx.fillRect(cx - 4, py0 - ph - 4, 8, ph + 4);
+    ctx.beginPath(); ctx.arc(cx, py0 - ph - 4, 4, 0, TAU); ctx.fillStyle = "#ffffff"; ctx.fill();
+  }
+  /* 大门 */
+  rr(ctx, x - 20, py0 - 32, 40, 32, 5); ctx.fillStyle = "#4a6a9c"; ctx.fill();
+  ctx.strokeStyle = "rgba(255,255,255,.45)"; ctx.lineWidth = 2; ctx.stroke();
+  /* 穹顶时钟 */
+  const ck = { x: x, y: y + 45 };
+  ctx.beginPath(); ctx.arc(ck.x, ck.y, 10, 0, TAU); ctx.fillStyle = "#ffffff"; ctx.fill();
+  ctx.strokeStyle = "#7f98bb"; ctx.lineWidth = 2.4; ctx.stroke();
+  ctx.strokeStyle = "#33455e"; ctx.lineWidth = 1.6;
+  ctx.beginPath(); ctx.moveTo(ck.x, ck.y); ctx.lineTo(ck.x, ck.y - 6); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(ck.x, ck.y); ctx.lineTo(ck.x + 4, ck.y + 2); ctx.stroke();
+}
+
+function drawChloroplast(o) {
+  const x = o.x, y = o.y, w = o.w, h = o.h;
+  shadowRect(x, y, w, h, 18, 12, 0.4);
+  const p = box3d(x, y + h / 2, w, h, H3D.chloroplast, "#4f9e58", "#2f6b3c", 18);
+  const ry = p.yRoof;
+  ctx.save(); ctx.globalAlpha = 0.3; ctx.fillStyle = "#e9fff2";
+  ctx.beginPath(); ctx.moveTo(p.left + 16, ry + 12); ctx.lineTo(p.right - 74, ry + 12);
+  ctx.lineTo(p.right - 128, ry + h - 20); ctx.lineTo(p.left + 16, ry + h - 20); ctx.closePath(); ctx.fill(); ctx.restore();
+  const cols = 4, baseYy = ry + h - 22;
+  for (let c = 0; c < cols; c++) {
+    const cx = p.left + 42 + c * ((w - 84) / (cols - 1)), stackH = 42, rad = 17;
+    const sg = ctx.createLinearGradient(cx - rad, 0, cx + rad, 0);
+    sg.addColorStop(0, "#4d9a4f"); sg.addColorStop(0.36, "#b8f0a6"); sg.addColorStop(1, "#3f8342");
+    ctx.fillStyle = sg; ctx.fillRect(cx - rad, baseYy - stackH, rad * 2, stackH);
+    ctx.beginPath(); ctx.ellipse(cx, baseYy, rad, 6.5, 0, 0, Math.PI); ctx.fillStyle = "#356f38"; ctx.fill();
+    ctx.strokeStyle = "rgba(36,80,40,.55)"; ctx.lineWidth = 1.8;
+    for (let s = 1; s < 5; s++) { const sy = baseYy - s * (stackH / 5); ctx.beginPath(); ctx.moveTo(cx - rad, sy); ctx.lineTo(cx + rad, sy); ctx.stroke(); }
+    ctx.beginPath(); ctx.ellipse(cx, baseYy - stackH, rad, 6.5, 0, 0, TAU);
+    const tg = ctx.createRadialGradient(cx - 5, baseYy - stackH - 2.5, 2, cx, baseYy - stackH, rad);
+    tg.addColorStop(0, "#e6ffd8"); tg.addColorStop(1, "#8ddb84"); ctx.fillStyle = tg; ctx.fill();
+    ctx.strokeStyle = "#3f8342"; ctx.lineWidth = 1.6; ctx.stroke();
+  }
+  ctx.strokeStyle = "rgba(255,255,255,.5)"; ctx.lineWidth = 2.5; rr(ctx, p.left + 3, ry + 3, w - 6, h - 6, 15); ctx.stroke();
+}
+
+function coolingTower(cx, cyBase, rBase, height) {
+  const rTop = rBase * 0.72, rWaist = rBase * 0.55, yTop = cyBase - height;
+  const g = ctx.createLinearGradient(cx - rBase, 0, cx + rBase, 0);
+  g.addColorStop(0, "#7d8ca6"); g.addColorStop(0.3, "#c6d2e2"); g.addColorStop(0.5, "#aebccf"); g.addColorStop(1, "#6b7a92");
+  ctx.beginPath();
+  ctx.moveTo(cx - rBase, cyBase);
+  ctx.bezierCurveTo(cx - rWaist, cyBase - height * 0.5, cx - rWaist, cyBase - height * 0.82, cx - rTop, yTop);
+  ctx.lineTo(cx + rTop, yTop);
+  ctx.bezierCurveTo(cx + rWaist, cyBase - height * 0.82, cx + rWaist, cyBase - height * 0.5, cx + rBase, cyBase);
+  ctx.closePath();
+  ctx.fillStyle = g; ctx.fill();
+  ctx.beginPath(); ctx.ellipse(cx, cyBase, rBase, rBase * 0.42, 0, 0, Math.PI); ctx.fillStyle = "#6b7a92"; ctx.fill();
+  ctx.beginPath(); ctx.ellipse(cx, yTop, rTop, rTop * 0.42, 0, 0, TAU);
+  const tg = ctx.createRadialGradient(cx - rTop * 0.3, yTop - rTop * 0.2, 2, cx, yTop, rTop * 1.1);
+  tg.addColorStop(0, "#eef3f9"); tg.addColorStop(1, "#9aa8bc"); ctx.fillStyle = tg; ctx.fill();
+  ctx.strokeStyle = "rgba(60,80,110,.4)"; ctx.lineWidth = 1.5; ctx.stroke();
+  const t = performance.now() * 0.0006;
+  for (let k = 0; k < 5; k++) {
+    const prog = ((t + k * 0.2) % 1);
+    ctx.globalAlpha = 0.3 * (1 - prog);
+    ctx.beginPath(); ctx.arc(cx + Math.sin(prog * 5 + k) * 14, yTop - 10 - prog * 70, 12 + prog * 22, 0, TAU);
+    ctx.fillStyle = "#eef2f8"; ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+}
+
+function drawMitochondria(o) {
+  const x = o.x, y = o.y, w = o.w, h = o.h;
+  shadowRect(x, y, w, h, 22, 13, 0.42);
+  const sy = y + h / 2;
+  coolingTower(x - w * 0.26, sy - 4, 24, 86);
+  coolingTower(x + w * 0.18, sy - 4, 24, 100);
+  const p = box3d(x, sy, w, h, H3D.mitochondria, "#9fb0c9", "#657691", 24);
+  const ry = p.yRoof;
+  ctx.strokeStyle = "rgba(60,78,105,.32)"; ctx.lineWidth = 2;
+  for (let gx = p.left + 10; gx < p.right - 6; gx += 13) { ctx.beginPath(); ctx.moveTo(gx, ry + 6); ctx.lineTo(gx, ry + h - 6); ctx.stroke(); }
+  ctx.save(); ctx.globalAlpha = 0.75; ctx.fillStyle = "#ffe9a8";
+  rr(ctx, p.left + 16, ry + 12, w * 0.34, h * 0.26, 5); ctx.fill();
+  rr(ctx, p.right - 16 - w * 0.3, ry + h - 12 - h * 0.26, w * 0.3, h * 0.26, 5); ctx.fill(); ctx.restore();
+  const lx = x + w * 0.06, ly = ry + h * 0.5;
+  rr(ctx, lx - 26, ly - 26, 52, 52, 9); ctx.fillStyle = "#22303f"; ctx.fill();
+  ctx.strokeStyle = "#ffd24a"; ctx.lineWidth = 2.5; ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(lx + 6, ly - 18); ctx.lineTo(lx - 10, ly + 2); ctx.lineTo(lx + 1, ly + 2);
+  ctx.lineTo(lx - 6, ly + 18); ctx.lineTo(lx + 11, ly - 3); ctx.lineTo(lx, ly - 3); ctx.closePath(); ctx.fillStyle = "#ffd24a"; ctx.fill();
+  for (let i = 0; i < 2; i++) { const sx = p.left + 30 + i * 34; ctx.fillStyle = "#5b6a82"; ctx.fillRect(sx - 8, ry - 34, 16, 36); ctx.fillStyle = "#48566b"; ctx.fillRect(sx - 10, ry - 38, 20, 7); }
+  const t = performance.now() * 0.0006;
+  for (let i = 0; i < 2; i++) {
+    const sx = p.left + 30 + i * 34;
+    for (let k = 0; k < 4; k++) {
+      const prog = ((t + k * 0.25 + i * 0.4) % 1);
+      ctx.globalAlpha = 0.3 * (1 - prog);
+      ctx.beginPath(); ctx.arc(sx + Math.sin(prog * 6 + i) * 12, ry - 42 - prog * 58, 9 + prog * 18, 0, TAU); ctx.fillStyle = "#e6ecf6"; ctx.fill();
+    }
+  }
+  ctx.globalAlpha = 1;
+}
+
+function drawCellWallBuilding(o) {
+  const x = o.x, y = o.y, w = o.w, h = o.h;
+  shadowRect(x, y, w, h, 12, 12, 0.42);
+  const p = box3d(x, y + h / 2, w, h, H3D.cellwall, "#a5714a", "#6b4227", 12);
+  const ry = p.yRoof;
+  ctx.strokeStyle = "rgba(58,32,16,.42)"; ctx.lineWidth = 1.6;
+  for (let yy = ry + 14; yy < p.yBot - 6; yy += 13) { ctx.beginPath(); ctx.moveTo(p.left, yy); ctx.lineTo(p.right, yy); ctx.stroke(); }
+  const merlons = 7, mw = w / merlons;
+  for (let i = 0; i < merlons; i += 2) {
+    const mx = p.left + i * mw;
+    ctx.fillStyle = "#b8814f"; ctx.fillRect(mx + 3, ry - 15, mw - 6, 16);
+    ctx.fillStyle = "rgba(255,255,255,.22)"; ctx.fillRect(mx + 3, ry - 15, mw - 6, 3);
+    ctx.fillStyle = "rgba(0,0,0,.22)"; ctx.fillRect(mx + 3, ry - 1, mw - 6, 3);
+  }
+  for (let i = 0; i < 2; i++) { const tx = i === 0 ? p.left + 26 : p.right - 26; cylinder(tx, p.yBot - 4, 24, 22, 0.55, "#c08a55", "#7b4c2a"); }
+  const gw = 62, gh = 52;
+  ctx.beginPath(); ctx.moveTo(x - gw / 2, p.yTop + 8); ctx.lineTo(x - gw / 2, p.yTop - gh * 0.42);
+  ctx.quadraticCurveTo(x, p.yTop - gh, x + gw / 2, p.yTop - gh * 0.42); ctx.lineTo(x + gw / 2, p.yTop + 8); ctx.closePath();
+  const gg = ctx.createLinearGradient(0, p.yTop - gh, 0, p.yTop + 8);
+  gg.addColorStop(0, "#2a180c"); gg.addColorStop(1, "#4a2c16"); ctx.fillStyle = gg; ctx.fill();
+  ctx.strokeStyle = "#d3a86c"; ctx.lineWidth = 3; ctx.stroke();
+  const t2 = performance.now() * 0.006;
+  for (const fx of [x - gw / 2 - 26, x + gw / 2 + 26]) {
+    cylinder(fx, p.yTop - 6, 5, 22, 0.6, "#6b4a2a", "#4a3018");
+    const fl = 1 + Math.sin(t2) * 0.16;
+    ctx.save(); ctx.globalAlpha = 0.35; ctx.fillStyle = "#ffb703";
+    if (CAN_FILTER) ctx.filter = "blur(7px)";
+    ctx.beginPath(); ctx.arc(fx, p.yTop - 34, 13 * fl, 0, TAU); ctx.fill(); ctx.restore();
+    ctx.beginPath(); ctx.ellipse(fx, p.yTop - 34, 5, 8.5 * fl, 0, 0, TAU); ctx.fillStyle = "#ffd24a"; ctx.fill();
+  }
+}
+
+function drawVacuole(o) {
+  const x = o.x, y = o.y, w = o.w, h = o.h;
+  shadowRect(x, y, w, h, 22, 16, 0.46);
+  const p = box3d(x, y + h / 2, w, h, H3D.vacuole, "#d7b77c", "#a5854c", 22);
+  const ry = p.yRoof;
+  const tankW = w * 0.78, tankH = h * 0.6, tx = x, tankY = ry + h * 0.36;
+  rr(ctx, tx - tankW / 2, tankY, tankW, tankH, 16); ctx.fillStyle = "rgba(150,200,228,.5)"; ctx.fill();
+  const wl = tankY + tankH * 0.22;
+  rr(ctx, tx - tankW / 2 + 3, wl, tankW - 6, tankY + tankH - wl - 3, 13);
+  const wgd = ctx.createLinearGradient(0, wl, 0, tankY + tankH);
+  wgd.addColorStop(0, "#8fd8f6"); wgd.addColorStop(1, "#2f8dc4"); ctx.fillStyle = wgd; ctx.fill();
+  const tt = performance.now() * 0.0016;
+  ctx.strokeStyle = "rgba(255,255,255,.62)"; ctx.lineWidth = 2;
+  for (let k = 0; k < 3; k++) {
+    ctx.beginPath();
+    for (let i2 = 0; i2 <= 14; i2++) {
+      const pxp = tx - tankW / 2 + 8 + i2 * ((tankW - 16) / 14), pyp = wl + 12 + k * 24 + Math.sin(i2 * 0.7 + tt + k) * 3;
+      i2 === 0 ? ctx.moveTo(pxp, pyp) : ctx.lineTo(pxp, pyp);
+    }
+    ctx.stroke();
+  }
+  ctx.strokeStyle = "#7d6234"; ctx.lineWidth = 3; rr(ctx, tx - tankW / 2, tankY, tankW, tankH, 16); ctx.stroke();
+  const vhx = p.left + 30, vhy = p.yTop - 44;
+  rr(ctx, vhx, vhy, 40, 34, 5); ctx.fillStyle = "#9a7a44"; ctx.fill();
+  ctx.strokeStyle = "#6b5226"; ctx.lineWidth = 2; ctx.stroke();
+  cylinder(vhx + 20, vhy - 8, 8, 14, 0.6, "#d8b07c", "#8a6a34");
+}
+
+function drawGolgi(o) {
+  const x = o.x, y = o.y, w = o.w, h = o.h;
+  shadowRect(x, y, w, h, 16, 12, 0.4);
+  const p = box3d(x, y + h / 2, w, h, H3D.golgi, "#c3a5e6", "#7d5bb0", 16);
+  const ry = p.yRoof;
+  const n = 5, trayH = 13;
+  for (let i = 0; i < n; i++) {
+    const yy = ry + 22 + i * ((h - 44) / (n - 1)), inset = i * 3, l = p.left + 22 + inset, rt = p.right - 22 - inset;
+    ctx.beginPath(); ctx.moveTo(l + 8, yy + 4); ctx.quadraticCurveTo((l + rt) / 2, yy - 3, rt - 8, yy + 4);
+    ctx.lineWidth = trayH; ctx.lineCap = "round"; ctx.strokeStyle = "rgba(70,45,110,.4)"; ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(l + 8, yy); ctx.quadraticCurveTo((l + rt) / 2, yy - 15, rt - 8, yy);
+    ctx.lineWidth = trayH; const lg = ctx.createLinearGradient(0, yy - 12, 0, yy + 8);
+    lg.addColorStop(0, "#e6d5f7"); lg.addColorStop(1, "#9c74d4"); ctx.strokeStyle = lg; ctx.stroke();
+  }
+  const by = p.yTop + 12;
+  ctx.strokeStyle = "#4a3d5f"; ctx.lineWidth = 7; ctx.beginPath(); ctx.moveTo(p.left + 14, by); ctx.lineTo(p.right - 14, by); ctx.stroke();
+  const t = performance.now() * 0.0012;
+  for (let i = 0; i < 5; i++) {
+    const prog = (t + i * 0.2) % 1, bx = p.left + 20 + prog * (w - 46);
+    ctx.fillStyle = "#d59544"; rr(ctx, bx, by - 22, 17, 15, 3); ctx.fill();
+    ctx.strokeStyle = "rgba(120,74,20,.6)"; ctx.lineWidth = 1.6; ctx.stroke();
+  }
+}
+
+function drawRoughER(o) {
+  const x = o.x, y = o.y, w = o.w, h = o.h;
+  shadowRect(x, y, w, h, 16, 12, 0.4);
+  const p = box3d(x, y + h / 2, w, h, H3D.rougher, "#e5bd8c", "#a8712f", 16);
+  const ry = p.yRoof;
+  const teeth = 6;
+  for (let i = 0; i < teeth; i++) {
+    const tw = w / teeth, lx = p.left + i * tw;
+    ctx.beginPath(); ctx.moveTo(lx, ry + 10); ctx.lineTo(lx + tw - 4, ry + 10);
+    ctx.lineTo(lx + tw - 4, ry + h * 0.42); ctx.lineTo(lx, ry + h * 0.42); ctx.closePath();
+    ctx.fillStyle = i % 2 ? "#f2d2a8" : "#d9ac76"; ctx.fill();
+  }
+  ctx.lineCap = "round";
+  const pipes = [];
+  for (let i = 0; i < 3; i++) {
+    const baseYy = ry + h * 0.56 + i * 20;
+    const P0x = p.left + 24, P0y = baseYy, P1x = x - w / 4, P1y = baseYy - 20, P2x = x + w / 4, P2y = baseYy + 20, P3x = p.right - 24, P3y = baseYy;
+    pipes.push({ P0x, P0y, P1x, P1y, P2x, P2y, P3x, P3y });
+    ctx.beginPath(); ctx.moveTo(P0x, P0y + 5); ctx.bezierCurveTo(P1x, P1y + 5, P2x, P2y + 5, P3x, P3y + 5);
+    ctx.strokeStyle = "rgba(90,55,15,.35)"; ctx.lineWidth = 15; ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(P0x, P0y); ctx.bezierCurveTo(P1x, P1y, P2x, P2y, P3x, P3y);
+    ctx.strokeStyle = "#a86a25"; ctx.lineWidth = 15; ctx.stroke();
+    ctx.strokeStyle = "#e8a95c"; ctx.lineWidth = 8; ctx.stroke();
+  }
+  ctx.fillStyle = "#31519b";
+  for (const P of pipes) for (let k = 0; k <= 15; k++) {
+    const t2 = k / 15, mt = 1 - t2;
+    const pxp = mt * mt * mt * P.P0x + 3 * mt * mt * t2 * P.P1x + 3 * mt * t2 * t2 * P.P2x + t2 * t2 * t2 * P.P3x;
+    const pyp = mt * mt * mt * P.P0y + 3 * mt * mt * t2 * P.P1y + 3 * mt * t2 * t2 * P.P2y + t2 * t2 * t2 * P.P3y;
+    ctx.beginPath(); ctx.arc(pxp, pyp + (k % 2 === 0 ? -8.5 : 8.5), 3, 0, TAU); ctx.fill();
+  }
+}
+
+function drawSmoothER(o) {
+  const x = o.x, y = o.y, w = o.w, h = o.h;
+  shadowRect(x, y, w, h, 16, 12, 0.4);
+  const p = box3d(x, y + h / 2, w, h, H3D.smoother, "#cfe0d8", "#7f948a", 16);
+  const ry = p.yRoof;
+  const tanks = [{ tx: p.left + 52, r: 26, hh: 54, c: "#9ab8b0" }, { tx: p.left + 118, r: 20, hh: 40, c: "#8fb0c4" }, { tx: p.left + 182, r: 24, hh: 48, c: "#a9c2c0" }];
+  for (const tk of tanks) cylinder(tk.tx, ry + h - 18, tk.r, tk.hh, 0.55, "#e6f2ee", tk.c);
+  ctx.lineCap = "round"; ctx.strokeStyle = "#6f877f"; ctx.lineWidth = 7;
+  ctx.beginPath(); ctx.moveTo(p.left + 52, ry + h - 40); ctx.lineTo(p.left + 118, ry + h - 40); ctx.lineTo(p.left + 182, ry + h - 40); ctx.stroke();
+  const sx = p.right - 40; ctx.fillStyle = "#6f7f78"; ctx.fillRect(sx - 7, ry - 30, 14, 32);
+  const t = performance.now() * 0.0007;
+  for (let k = 0; k < 4; k++) {
+    const prog = ((t + k * 0.25) % 1);
+    ctx.globalAlpha = 0.28 * (1 - prog);
+    ctx.beginPath(); ctx.arc(sx + Math.sin(prog * 5) * 10, ry - 34 - prog * 46, 8 + prog * 14, 0, TAU); ctx.fillStyle = "#dfeef0"; ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+}
+
+function drawLysosome(o) {
+  const x = o.x, y = o.y, w = o.w, h = o.h;
+  shadowRect(x, y, w, h, 16, 12, 0.4);
+  const p = box3d(x, y + h / 2, w, h, H3D.lysosome, "#a8b8a4", "#66765f", 16);
+  const ry = p.yRoof;
+  const vat = { x: x - w * 0.16, y: ry + h * 0.52, r: 34 };
+  ctx.beginPath(); ctx.ellipse(vat.x, vat.y, vat.r, vat.r * 0.82, 0, 0, TAU);
+  const vg = ctx.createRadialGradient(vat.x - 10, vat.y - 12, 3, vat.x, vat.y, vat.r);
+  vg.addColorStop(0, "#d8f06a"); vg.addColorStop(1, "#5f9c2e"); ctx.fillStyle = vg; ctx.fill();
+  ctx.strokeStyle = "#3f6a22"; ctx.lineWidth = 3; ctx.stroke();
+  const t = performance.now() * 0.002;
+  for (let k = 0; k < 5; k++) {
+    const prog = ((t + k * 0.2) % 1);
+    ctx.globalAlpha = 0.8 * (1 - prog);
+    ctx.beginPath(); ctx.arc(vat.x + Math.sin(k * 2.4) * 20, vat.y - 4 - prog * 30, 2.5 + prog * 4, 0, TAU); ctx.fillStyle = "#c8f06a"; ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+  ctx.beginPath(); ctx.arc(x + w * 0.24, ry + h * 0.4, 15, 0, TAU);
+  ctx.strokeStyle = "#2f5f3a"; ctx.lineWidth = 3; ctx.stroke();
+  ctx.fillStyle = "#2f5f3a"; ctx.beginPath();
+  ctx.moveTo(x + w * 0.24, ry + h * 0.4 - 7); ctx.lineTo(x + w * 0.24 - 7, ry + h * 0.4 + 5); ctx.lineTo(x + w * 0.24 + 7, ry + h * 0.4 + 5);
+  ctx.closePath(); ctx.fill();
+}
+
+function drawPeroxisome(o) {
+  const x = o.x, y = o.y, w = o.w, h = o.h;
+  shadowRect(x, y, w, h, 14, 12, 0.38);
+  const p = box3d(x, y + h / 2, w, h, H3D.peroxisome, "#c4d8ea", "#6f8fa8", 14);
+  const ry = p.yRoof;
+  const tank = { x: x, y: ry + h * 0.5, r: 28 };
+  ctx.beginPath(); ctx.ellipse(tank.x, tank.y, tank.r, tank.r * 0.82, 0, 0, TAU);
+  const vg = ctx.createRadialGradient(tank.x - 8, tank.y - 10, 3, tank.x, tank.y, tank.r);
+  vg.addColorStop(0, "#eaf7ff"); vg.addColorStop(1, "#58a8d8"); ctx.fillStyle = vg; ctx.fill();
+  ctx.strokeStyle = "#356f9c"; ctx.lineWidth = 3; ctx.stroke();
+  rr(ctx, p.left + 18, ry + h - 26, 44, 26, 5); ctx.fillStyle = "#8fb0c8"; ctx.fill();
+  ctx.strokeStyle = "#4f7a99"; ctx.lineWidth = 2; ctx.stroke();
+}
+
+function drawCytoskeleton(o) {
+  const x = o.x, y = o.y, w = o.w, h = o.h;
+  shadowRect(x, y, w, h, 16, 12, 0.4);
+  const p = box3d(x, y + h / 2, w, h, H3D.cytoskeleton, "#d8cfae", "#9a8f68", 16);
+  const ry = p.yRoof;
+  ctx.strokeStyle = "#6f6f69"; ctx.lineWidth = 12;
+  ctx.beginPath(); ctx.moveTo(p.left + 14, ry + h * 0.72); ctx.lineTo(p.right - 14, ry + h * 0.3); ctx.stroke();
+  ctx.strokeStyle = "#8f8f87"; ctx.lineWidth = 8; ctx.stroke();
+  ctx.save(); ctx.setLineDash([10, 10]); ctx.strokeStyle = "rgba(255,255,255,.7)"; ctx.lineWidth = 2.4; ctx.stroke(); ctx.restore();
+  for (let i = 0; i < 4; i++) { const sx = p.left + 24 + i * ((w - 48) / 3); cylinder(sx, ry + h * 0.78, 5, 20, 0.6, "#e8e2c8", "#8a7f5c"); }
+  ctx.lineCap = "round"; ctx.strokeStyle = "rgba(140,120,80,.75)"; ctx.lineWidth = 4;
+  ctx.beginPath(); ctx.moveTo(p.left + 20, ry + 14); ctx.lineTo(p.right - 20, ry + 30);
+  ctx.moveTo(p.left + 20, ry + 30); ctx.lineTo(p.right - 20, ry + 14); ctx.stroke();
+}
+
+function drawMembrane(o) {
+  const x = o.x, y = o.y, w = o.w, h = o.h;
+  shadowRect(x, y, w, h, 12, 12, 0.4);
+  const p = box3d(x, y + h / 2, w, h, H3D.membrane, "#cfe0ec", "#5f7a93", 12);
+  const ry = p.yRoof;
+  ctx.strokeStyle = "#4a6278"; ctx.lineWidth = 5;
+  ctx.beginPath(); ctx.moveTo(p.left + 6, ry + 10); ctx.lineTo(p.right - 6, ry + 10); ctx.stroke();
+  for (let i = 0; i < 6; i++) {
+    const sx = p.left + 12 + i * 22;
+    ctx.fillStyle = i % 2 ? "#2b2b2b" : "#ffd24a"; ctx.fillRect(sx, ry + h - 16, 22, 8);
+  }
+  const bx = x + w * 0.16;
+  ctx.strokeStyle = "#c33"; ctx.lineWidth = 4;
+  ctx.beginPath(); ctx.moveTo(bx, ry + h - 18); ctx.lineTo(bx - 30, ry + h - 40); ctx.stroke();
+  rr(ctx, x - w * 0.26, ry + h - 26, 40, 26, 4); ctx.fillStyle = "#e8f0f6"; ctx.fill();
+  ctx.strokeStyle = "#4a6278"; ctx.lineWidth = 2; ctx.stroke();
+}
+
+/* ---- 名牌 ---- */
+function drawLabel(o) {
+  const L = o[lang];
+  const ly = visualTop(o) - 26 - (LABEL_LIFT[o.id] || 0);
+  const lx = o.x;
+  const active = o.id === activeId;
+  ctx.font = "700 16px 'Segoe UI','Microsoft YaHei',sans-serif";
+  const txt = o.emoji + "  " + L.name;
+  const tw = ctx.measureText(txt).width;
+  const padX = 14, hh = 32;
+  ctx.save(); ctx.globalAlpha = 0.4; ctx.fillStyle = "#07160d";
+  if (CAN_FILTER) ctx.filter = "blur(7px)";
+  rr(ctx, lx - tw / 2 - padX + 2, ly - hh / 2 + 5, tw + padX * 2, hh, hh / 2); ctx.fill(); ctx.restore();
+  ctx.beginPath(); ctx.moveTo(lx - 7, ly + hh / 2 - 2); ctx.lineTo(lx, ly + hh / 2 + 8); ctx.lineTo(lx + 7, ly + hh / 2 - 2);
+  ctx.closePath(); ctx.fillStyle = active ? "rgba(24,78,50,.97)" : "rgba(9,26,17,.94)"; ctx.fill();
+  const bg = ctx.createLinearGradient(0, ly - hh / 2, 0, ly + hh / 2);
+  bg.addColorStop(0, active ? "rgba(36,104,66,.98)" : "rgba(20,50,34,.95)");
+  bg.addColorStop(1, active ? "rgba(18,62,40,.98)" : "rgba(8,24,16,.95)");
+  rr(ctx, lx - tw / 2 - padX, ly - hh / 2, tw + padX * 2, hh, hh / 2); ctx.fillStyle = bg; ctx.fill();
+  ctx.strokeStyle = active ? "#7cf0a8" : "rgba(122,205,158,.5)";
+  ctx.lineWidth = active ? 2.6 : 1.6; ctx.stroke();
+  ctx.fillStyle = active ? "#cbffde" : "#e2f7ea";
+  ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(txt, lx, ly + 1);
+}
+function drawActiveHalo(o, time) {
+  const pulse = 0.5 + Math.sin(time * 0.005) * 0.5;
+  const b = footBox(o);
+  const cxp = (b.x0 + b.x1) / 2, cyp = (b.y0 + b.y1) / 2 + 8;
+  const rw = (b.x1 - b.x0) / 2 + 24, rh = (b.y1 - b.y0) / 2 + 22;
+  ctx.save(); ctx.globalAlpha = 0.09 + pulse * 0.13; ctx.fillStyle = "#7cf0a8";
+  if (CAN_FILTER) ctx.filter = "blur(18px)";
+  ctx.beginPath(); ctx.ellipse(cxp, cyp, rw, rh, 0, 0, TAU); ctx.fill(); ctx.restore();
+  ctx.save(); ctx.globalAlpha = 0.35 + pulse * 0.5; ctx.strokeStyle = "#6ee09b"; ctx.lineWidth = 4;
+  ctx.setLineDash([14, 10]); ctx.lineDashOffset = -time * 0.03;
+  ctx.beginPath(); ctx.ellipse(cxp, cyp, rw, rh, 0, 0, TAU); ctx.stroke(); ctx.restore();
+}
+
+/* ---- 主角 ---- */
+function drawPlayer() {
+  const bob = player.moved ? Math.sin(player.t) * 3.4 : 0;
+  const px = player.x, py = player.y + bob;
+  const sq = player.moved ? 1 + Math.sin(player.t * 2) * 0.05 : 1;
+  ctx.save(); ctx.globalAlpha = 0.34; ctx.fillStyle = "#0f1e0a";
+  if (CAN_FILTER) ctx.filter = "blur(5px)";
+  ctx.beginPath(); ctx.ellipse(player.x + 5, player.y + 16, 15 * sq, 6, 0, 0, TAU); ctx.fill(); ctx.restore();
+  const g = ctx.createRadialGradient(px - 7, py - 9, 2, px, py, player.r + 5);
+  g.addColorStop(0, "#ffd6da"); g.addColorStop(0.32, "#ff8b95"); g.addColorStop(0.75, "#ea4a58"); g.addColorStop(1, "#c21f2e");
+  ctx.beginPath(); ctx.ellipse(px, py, player.r * sq, player.r / sq, 0, 0, TAU); ctx.fillStyle = g; ctx.fill();
+  ctx.strokeStyle = "rgba(126,16,28,.7)"; ctx.lineWidth = 2; ctx.stroke();
+  ctx.save(); ctx.globalAlpha = 0.6; ctx.fillStyle = "#fff";
+  ctx.beginPath(); ctx.ellipse(px - 6, py - 8, 4.8, 3.2, -0.6, 0, TAU); ctx.fill(); ctx.restore();
+  const d = player.faceX >= 0 ? 1 : -1;
+  ctx.fillStyle = "#fff";
+  ctx.beginPath(); ctx.ellipse(px - 5.6 * d, py - 3.6, 4.2, 4.6, 0, 0, TAU); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(px + 5.6 * d, py - 3.6, 4.2, 4.6, 0, 0, TAU); ctx.fill();
+  ctx.fillStyle = "#26303a";
+  ctx.beginPath(); ctx.arc(px - 4.9 * d + d * 1.4, py - 3.4, 2.1, 0, TAU); ctx.fill();
+  ctx.beginPath(); ctx.arc(px + 6.3 * d + d * 1.4, py - 3.4, 2.1, 0, TAU); ctx.fill();
+  ctx.strokeStyle = "#7a1f28"; ctx.lineWidth = 1.9; ctx.lineCap = "round";
+  ctx.beginPath(); ctx.arc(px, py + 3.6, 5.2, 0.18 * Math.PI, 0.82 * Math.PI); ctx.stroke();
+}
+
+/* ---- 主循环 ---- */
+let lastT = performance.now();
+function frame(now) {
+  const time = now;
+  const dt = Math.min(40, now - lastT); lastT = now;
+  if (!cardOpen) {
+    let dx = 0, dy = 0;
+    if (keys["arrowleft"] || keys["a"]) dx -= 1;
+    if (keys["arrowright"] || keys["d"]) dx += 1;
+    if (keys["arrowup"] || keys["w"]) dy -= 1;
+    if (keys["arrowdown"] || keys["s"]) dy += 1;
+    if (dx || dy) {
+      const len = Math.hypot(dx, dy), sp = 4.6 * (dt / 16.67);
+      moveBy((dx / len) * sp, (dy / len) * sp);
+      player.t += 0.26; player.moved = true; if (dx) player.faceX = dx;
+    } else player.moved = false;
+  } else player.moved = false;
+  updateRibosomes(dt);
+  updateCars(dt);
+
+  const camX = view.w >= WORLD.w ? (WORLD.w - view.w) / 2 : clamp(player.x - view.w / 2, 0, WORLD.w - view.w);
+  const camY = view.h >= WORLD.h ? (WORLD.h - view.h) / 2 : clamp(player.y - view.h / 2, 0, WORLD.h - view.h);
+  cam.x += (camX - cam.x) * 0.16;
+  cam.y += (camY - cam.y) * 0.16;
+
+  const actOrg = cardOpen ? null : findActive();
+  const actRibo = cardOpen ? null : nearestRibo();
+  activeRiboDot = actOrg ? null : actRibo;
+  const act = actOrg || (actRibo ? ORG.find(x => x.id === "ribosome") : null);
+  const newId = act ? act.id : null;
+  if (newId !== activeId) { activeId = newId; updatePrompt(act); }
+
+  const dpr = window.devicePixelRatio || 1;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.fillStyle = "#0a1410";
+  ctx.fillRect(0, 0, view.w, view.h);
+
+  ctx.save();
+  ctx.translate(-cam.x, -cam.y);
+  ctx.fillStyle = "#22331f";
+  ctx.fillRect(0, 0, WORLD.w, WORLD.h);
+  ctx.drawImage(groundCv, 0, 0);
+  for (const c of CARS) drawCar(c);
+  drawFountains(time);
+  drawParticles(time);
+  for (const o of ORG) if (o.id === activeId && !o.roam) drawActiveHalo(o, time);
+
+  const items = [];
+  for (const o of ORG) if (!o.roam) items.push({ z: o.y + (o.type === "circle" ? o.r : o.h / 2), kind: "org", o });
+  items.push({ z: player.y, kind: "player" });
+  for (const rb of RIBOSOMES) items.push({ z: rb.y, kind: "ribo", rb });
+  items.sort((a, b) => a.z - b.z);
+  for (const it of items) {
+    if (it.kind === "org") drawBuildingShape(it.o);
+    else if (it.kind === "player") drawPlayer();
+    else drawRibosomeDot(it.rb, time, it.rb === activeRiboDot);
+  }
+
+  for (const o of ORG) if (!o.roam) drawLabel(o);
+  ctx.restore();
+
+  const lg = ctx.createLinearGradient(0, 0, view.w, view.h);
+  lg.addColorStop(0, "rgba(255,250,215,.10)"); lg.addColorStop(0.5, "rgba(255,255,255,0)"); lg.addColorStop(1, "rgba(16,38,24,.16)");
+  ctx.fillStyle = lg; ctx.fillRect(0, 0, view.w, view.h);
+  const vg = ctx.createRadialGradient(view.w / 2, view.h / 2, Math.min(view.w, view.h) * 0.34, view.w / 2, view.h / 2, Math.max(view.w, view.h) * 0.76);
+  vg.addColorStop(0, "rgba(0,0,0,0)"); vg.addColorStop(1, "rgba(5,14,9,.46)");
+  ctx.fillStyle = vg; ctx.fillRect(0, 0, view.w, view.h);
+
+  requestAnimationFrame(frame);
+}
+
+/* ---------------------- 10. UI 逻辑 ---------------------- */
+const promptEl = document.getElementById("prompt");
+const toastEl = document.getElementById("toast");
+const clList = document.getElementById("clList");
+const clBar = document.getElementById("clBar");
+const clCount = document.getElementById("clCount");
+const clTitleText = document.getElementById("clTitleText");
+
+function updatePrompt(o) {
+  if (!o) { promptEl.classList.remove("on"); return; }
+  promptEl.innerHTML = T[lang].prompt(o[lang].name);
+  promptEl.classList.add("on");
+}
+
+let toastTimer = null;
+function toast(msg) {
+  toastEl.textContent = msg;
+  toastEl.classList.add("on");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toastEl.classList.remove("on"), 1600);
+}
+
+function buildChecklist() {
+  clTitleText.textContent = T[lang].clTitle;
+  clList.innerHTML = "";
+  for (const o of ORG) {
+    const d = document.createElement("div");
+    d.className = "clItem" + (visited.has(o.id) ? " on" : "");
+    d.dataset.id = o.id;
+    d.innerHTML = '<span class="tick">' + (visited.has(o.id) ? "✅" : "⬜") + "</span><span>" + o.emoji + " " + o[lang].name + "</span>";
+    clList.appendChild(d);
+  }
+  clCount.textContent = visited.size + " / " + ORG.length;
+  clBar.style.width = (visited.size / ORG.length * 100) + "%";
+}
+
+function refreshChecklist() {
+  for (const d of clList.children) {
+    const on = visited.has(d.dataset.id);
+    d.classList.toggle("on", on);
+    d.querySelector(".tick").textContent = on ? "✅" : "⬜";
+    const o = ORG.find(x => x.id === d.dataset.id);
+    d.lastChild.textContent = o.emoji + " " + o[lang].name;
+  }
+  clCount.textContent = visited.size + " / " + ORG.length;
+  clBar.style.width = (visited.size / ORG.length * 100) + "%";
+}
+
+/* --- 卡片 --- */
+const cardOverlay = document.getElementById("cardOverlay");
+const cardEmoji = document.getElementById("cardEmoji");
+const cardName = document.getElementById("cardName");
+const cardTag = document.getElementById("cardTag");
+const cardWhy = document.getElementById("cardWhy");
+const cardFunc = document.getElementById("cardFunc");
+const cardAp = document.getElementById("cardAp");
+const cardLink = document.getElementById("cardLink");
+const extNote = document.getElementById("extNote");
+
+/* --- 结构示意图 --- */
+const diagramImg = document.getElementById("diagram");
+const ORG_IMG = {
+  nucleus: "img/nucleus.webp",
+  chloroplast: "img/chloroplast.png",
+  mitochondria: "img/mitochondria.png",
+  cellwall: "img/cellwall.jpg",
+  vacuole: "img/vacuole.jpg",
+  golgi: "img/golgi.jpg",
+  rougher: "img/er.jpg",
+  smoother: "img/er.jpg",
+  ribosome: "img/ribosome.jpg",
+  lysosome: "img/lysosome.jpg",
+  peroxisome: "img/peroxisome.png",
+  cytoskeleton: "img/cytoskeleton.jpg",
+  membrane: "img/membrane.jpg"
+};
+
+function dL(x, y, txt) {
+  dg.fillStyle = "#55616b";
+  dg.font = "11px 'Segoe UI','Microsoft YaHei',sans-serif";
+  dg.textAlign = "center";
+  dg.textBaseline = "middle";
+  dg.fillText(txt, x, y);
+}
+function dCircle(x, y, r, fill, stroke) {
+  dg.beginPath(); dg.arc(x, y, r, 0, TAU); dg.fillStyle = fill; dg.fill();
+  dg.strokeStyle = stroke || "#333"; dg.lineWidth = 2; dg.stroke();
+}
+function dEllipse(x, y, rx, ry, fill, stroke) {
+  dg.beginPath(); dg.ellipse(x, y, rx, ry, 0, 0, TAU); dg.fillStyle = fill; dg.fill();
+  dg.strokeStyle = stroke || "#333"; dg.lineWidth = 2.4; dg.stroke();
+}
+
+function drawDiagram(id) {
+  dg.clearRect(0, 0, DW, DH);
+  dg.fillStyle = "#f4f8f5";
+  dg.fillRect(0, 0, DW, DH);
+  dg.lineWidth = 2;
+  switch (id) {
+    case "nucleus": diagramNucleus(); break;
+    case "chloroplast": diagramChloroplast(); break;
+    case "mitochondria": diagramMitochondria(); break;
+    case "cellwall": diagramCellWall(); break;
+    case "vacuole": diagramVacuole(); break;
+    case "golgi": diagramGolgi(); break;
+    case "rougher": diagramRoughER(); break;
+    case "smoother": diagramSmoothER(); break;
+    case "ribosome": diagramRibosome(); break;
+    case "lysosome": diagramLysosome(); break;
+    case "peroxisome": diagramPeroxisome(); break;
+    case "cytoskeleton": diagramCytoskeleton(); break;
+    case "membrane": diagramMembrane(); break;
+  }
+}
+
+function diagramNucleus() {
+  const cx = 230, cy = 112, R = 74;
+  dg.beginPath(); dg.arc(cx, cy, R, 0, TAU); dg.fillStyle = "#dbe7f7"; dg.fill();
+  dg.strokeStyle = "#7a97c2"; dg.lineWidth = 3; dg.stroke();
+  dg.beginPath(); dg.arc(cx, cy, R - 12, 0, TAU); dg.strokeStyle = "#a9c0dd"; dg.lineWidth = 1.6; dg.stroke();
+  for (let i = 0; i < 14; i++) {
+    const a = i / 14 * TAU;
+    dg.beginPath(); dg.arc(cx + Math.cos(a) * (R - 6), cy + Math.sin(a) * (R - 6), 3.4, 0, TAU);
+    dg.fillStyle = "#5b7fae"; dg.fill();
+  }
+  dg.strokeStyle = "rgba(120,140,180,.8)"; dg.lineWidth = 2;
+  for (let i = 0; i < 4; i++) { dg.beginPath(); dg.arc(cx - 12, cy - 4, R * (0.28 + i * 0.12), i, i + 2.2); dg.stroke(); }
+  dg.beginPath(); dg.arc(cx + 20, cy - 12, 22, 0, TAU); dg.fillStyle = "#8aa6cc"; dg.fill();
+  dg.strokeStyle = "#5f7fae"; dg.stroke();
+  dL(cx, cy - R - 15, "Nuclear envelope + pores");
+  dL(cx + 40, cy + 22, "Nucleolus");
+  dL(cx - 90, cy - 40, "Chromatin");
+}
+
+function diagramChloroplast() {
+  const cx = 230, cy = 112;
+  dEllipse(cx, cy, 150, 68, "#cdecc8", "#4f9e58");
+  for (let i = 0; i < 4; i++) {
+    const gx = cx - 90 + i * 62;
+    for (let s = 0; s < 4; s++) {
+      dg.beginPath(); dg.ellipse(gx, cy + 18 - s * 11, 30, 8, 0, 0, TAU);
+      dg.fillStyle = "#5cb45f"; dg.fill();
+      dg.strokeStyle = "#2e6b3a"; dg.lineWidth = 1.2; dg.stroke();
+    }
+  }
+  dL(cx, cy - 60, "Double membrane");
+  dL(cx + 140, cy - 24, "Thylakoids (grana)");
+  dL(cx, cy + 55, "Stroma");
+}
+
+function diagramMitochondria() {
+  const cx = 230, cy = 112;
+  dEllipse(cx, cy, 150, 72, "#ffd9c0", "#c0713f");
+  dg.strokeStyle = "#c0713f"; dg.lineWidth = 2.4;
+  for (let i = 0; i < 6; i++) {
+    const fx = cx - 92 + i * 36;
+    dg.beginPath(); dg.moveTo(fx, cy - 40); dg.quadraticCurveTo(fx + 24, cy, fx, cy + 40); dg.stroke();
+  }
+  dL(cx, cy - 64, "Double membrane");
+  dL(cx, cy + 55, "Cristae · Matrix");
+}
+
+function diagramCellWall() {
+  dg.strokeStyle = "#8a9a56"; dg.lineWidth = 15;
+  dg.strokeRect(72, 55, 316, 120);
+  dg.strokeStyle = "#5c7038"; dg.lineWidth = 2.5; dg.strokeRect(80, 63, 300, 104);
+  dg.strokeStyle = "#4fa3d9"; dg.lineWidth = 3;
+  dg.strokeRect(112, 85, 236, 60);
+  dL(230, 30, "Cell wall (cellulose)");
+  dL(230, 168, "Cell membrane");
+}
+
+function diagramVacuole() {
+  const cx = 230, cy = 112;
+  dg.beginPath(); dg.arc(cx, cy, 78, 0, TAU); dg.fillStyle = "#bfe6f7"; dg.fill();
+  dg.strokeStyle = "#4f9ec4"; dg.lineWidth = 3; dg.stroke();
+  dCircle(cx - 20, cy - 14, 18, "#8fd0ee", "#4f9ec4");
+  dCircle(cx + 26, cy + 18, 13, "#8fd0ee", "#4f9ec4");
+  dL(cx, cy - 96, "Tonoplast (single membrane)");
+  dL(cx, cy + 96, "Water, ions, pigments");
+}
+
+function diagramGolgi() {
+  const cx = 230, cy = 112;
+  for (let i = 0; i < 5; i++) {
+    const yy = cy - 42 + i * 21;
+    const l = cx - 92 + i * 3, r = cx + 92 - i * 3;
+    dg.beginPath(); dg.moveTo(l, yy); dg.quadraticCurveTo(cx, yy - 12, r, yy);
+    dg.lineWidth = 10; dg.lineCap = "round"; dg.strokeStyle = "#b98ce8"; dg.stroke();
+  }
+  for (let i = 0; i < 5; i++) {
+    dCircle(cx - 100 + i * 42, cy + 54, 6, "#d9c6f2", "#8f6cc4");
+  }
+  dL(cx - 128, cy - 50, "Cis face");
+  dL(cx + 128, cy - 50, "Trans face");
+  dL(cx, cy + 78, "Vesicles");
+}
+
+function diagramRoughER() {
+  const cx = 230, cy = 112;
+  dg.strokeStyle = "#d08c4e"; dg.lineWidth = 5;
+  for (let i = 0; i < 4; i++) {
+    const yy = cy - 45 + i * 30;
+    dg.beginPath(); dg.moveTo(70, yy); dg.bezierCurveTo(140, yy - 28, 200, yy + 28, 390, yy); dg.stroke();
+  }
+  dg.fillStyle = "#31519b";
+  for (let i = 0; i < 4; i++) {
+    const yy = cy - 45 + i * 30;
+    for (let k = 0; k <= 14; k++) {
+      const t = k / 14;
+      const x = 70 + t * 320, y = yy - Math.sin(t * Math.PI) * 20;
+      dg.beginPath(); dg.arc(x, y + (k % 2 ? 8 : -8), 3, 0, TAU); dg.fill();
+    }
+  }
+  dL(cx, cy - 70, "Rough ER + ribosomes");
+}
+
+function diagramSmoothER() {
+  const cx = 230, cy = 112;
+  dg.strokeStyle = "#7fae9c"; dg.lineWidth = 5;
+  for (let i = 0; i < 4; i++) {
+    const yy = cy - 45 + i * 30;
+    dg.beginPath(); dg.moveTo(70, yy); dg.bezierCurveTo(140, yy - 28, 200, yy + 28, 390, yy); dg.stroke();
+  }
+  dL(cx, cy + 55, "Smooth ER (no ribosomes)");
+}
+
+function diagramRibosome() {
+  const cx = 230, cy = 112;
+  dCircle(cx - 20, cy + 16, 34, "#b8c8de", "#4f74b4");
+  dCircle(cx + 16, cy - 18, 24, "#9fb6d6", "#3f63a3");
+  dL(cx - 50, cy + 52, "Large subunit");
+  dL(cx + 92, cy - 44, "Small subunit");
+}
+
+function diagramLysosome() {
+  const cx = 230, cy = 112;
+  dg.beginPath(); dg.arc(cx, cy, 74, 0, TAU); dg.fillStyle = "#e8f0d8"; dg.fill();
+  dg.strokeStyle = "#6f9c4e"; dg.lineWidth = 3; dg.stroke();
+  for (let i = 0; i < 9; i++) {
+    const a = i * 0.9, rr2 = 20 + (i % 3) * 12;
+    dCircle(cx + Math.cos(a) * 34, cy + Math.sin(a) * 34, 7, "#9cc45e", "#4f7a2e");
+  }
+  dL(cx, cy + 96, "Hydrolytic enzymes");
+}
+
+function diagramPeroxisome() {
+  const cx = 230, cy = 112;
+  dg.beginPath(); dg.arc(cx, cy, 74, 0, TAU); dg.fillStyle = "#e0eef6"; dg.fill();
+  dg.strokeStyle = "#4f9cc4"; dg.lineWidth = 3; dg.stroke();
+  dg.save(); dg.translate(cx, cy); dg.rotate(-0.5);
+  dg.fillStyle = "#7fb8d8"; dg.fillRect(-14, -14, 28, 28);
+  dg.strokeStyle = "#3f7a9c"; dg.lineWidth = 1.6; dg.strokeRect(-14, -14, 28, 28);
+  dg.restore();
+  dL(cx, cy + 96, "Enzymes + catalase");
+}
+
+function diagramCytoskeleton() {
+  const cx = 230, cy = 112;
+  dg.lineCap = "round";
+  dg.strokeStyle = "#c0392b"; dg.lineWidth = 5;
+  dg.beginPath(); dg.moveTo(cx - 130, cy - 40); dg.quadraticCurveTo(cx, cy, cx + 130, cy + 40); dg.stroke();
+  dg.strokeStyle = "#2980b9"; dg.lineWidth = 4;
+  dg.beginPath(); dg.moveTo(cx - 130, cy + 40); dg.quadraticCurveTo(cx, cy, cx + 130, cy - 40); dg.stroke();
+  dg.strokeStyle = "#7f8c8d"; dg.lineWidth = 2.4;
+  dg.beginPath(); dg.moveTo(cx, cy - 82); dg.lineTo(cx, cy + 82); dg.stroke();
+  dL(cx, cy + 96, "Microtubules · Microfilaments · Intermediate filaments");
+}
+
+function diagramMembrane() {
+  const cx = 230, cy = 112;
+  for (let i = 0; i < 12; i++) {
+    const x = 60 + i * 34;
+    dCircle(x, cy - 18, 7, "#6fb0d9", "#4f8fb8");
+    dCircle(x, cy + 18, 7, "#6fb0d9", "#4f8fb8");
+    dg.strokeStyle = "#9cc4de"; dg.lineWidth = 2.4;
+    dg.beginPath(); dg.moveTo(x, cy - 11); dg.lineTo(x, cy + 11); dg.stroke();
+  }
+  dg.fillStyle = "#e0a54f";
+  dg.beginPath(); dg.ellipse(cx + 128, cy, 16, 34, 0, 0, TAU); dg.fill();
+  dg.strokeStyle = "#a86f2a"; dg.lineWidth = 1.8; dg.stroke();
+  dL(cx - 30, cy - 36, "Phospholipid bilayer");
+  dL(cx + 128, cy + 48, "Membrane protein");
+}
+
+const QUIZZES = {
+  nucleus: {
+    zh: { q: "核膜上的核孔（nuclear pores）的主要功能是什么？", o: ["让 DNA 自由进出细胞核", "选择性运输 mRNA、核糖体亚基等物质", "合成蛋白质", "储存钙离子"], a: 1, e: "核孔是双层核膜上的选择性通道，允许 mRNA、核糖体亚基等进出，同时阻止 DNA 离开细胞核。" },
+    en: { q: "What is the primary function of nuclear pores?", o: ["Allow DNA to exit freely", "Selectively transport materials such as mRNA and ribosomal subunits", "Synthesize proteins", "Store calcium ions"], a: 1, e: "Nuclear pores are selective channels in the nuclear envelope that let mRNA and ribosomal subunits pass while keeping DNA inside the nucleus." }
+  },
+  chloroplast: {
+    zh: { q: "卡尔文循环（Calvin cycle）在叶绿体的哪个部位进行？", o: ["类囊体膜上", "基质（stroma）中", "外膜上", "基粒内部"], a: 1, e: "光反应发生在类囊体膜上，而卡尔文循环（固定 CO₂）发生在基质中。" },
+    en: { q: "Where does the Calvin cycle occur in the chloroplast?", o: ["On the thylakoid membrane", "In the stroma", "On the outer membrane", "Inside the grana"], a: 1, e: "Light reactions occur on the thylakoid membrane; the Calvin cycle fixes CO2 in the stroma." }
+  },
+  mitochondria: {
+    zh: { q: "线粒体内膜折叠成嵴（cristae）的意义是什么？", o: ["储存 DNA", "增大表面积以容纳更多产生 ATP 的装置", "防止水分流失", "固定核糖体"], a: 1, e: "嵴大大增加内膜表面积，让更多电子传递链和 ATP 合酶能嵌入，提高产能效率——典型的“结构对应功能”。" },
+    en: { q: "Why is the inner mitochondrial membrane folded into cristae?", o: ["To store DNA", "To increase surface area for ATP-producing machinery", "To prevent water loss", "To anchor ribosomes"], a: 1, e: "Cristae greatly increase surface area, allowing more electron transport chains and ATP synthase — a classic structure-fits-function example." }
+  },
+  cellwall: {
+    zh: { q: "关于植物细胞壁，下列哪项正确？", o: ["它是选择透过性的", "主要成分是纤维素，且全透", "由磷脂双分子层构成", "负责主动运输"], a: 1, e: "细胞壁主要由纤维素构成，是全透性的；真正“把关”的是选择透过性的细胞膜。" },
+    en: { q: "Which statement about the plant cell wall is correct?", o: ["It is selectively permeable", "It is mainly cellulose and fully permeable", "It is made of a phospholipid bilayer", "It performs active transport"], a: 1, e: "The cell wall is mainly cellulose and fully permeable; the selectively permeable plasma membrane is the actual gatekeeper." }
+  },
+  vacuole: {
+    zh: { q: "让植物细胞保持坚挺的膨压（turgor pressure）主要由哪个结构维持？", o: ["细胞壁", "中央液泡", "线粒体", "高尔基体"], a: 1, e: "中央液泡吸水膨胀，把质膜压向细胞壁，形成膨压使植物挺立；失水则萎蔫。" },
+    en: { q: "Which structure mainly maintains turgor pressure in plant cells?", o: ["Cell wall", "Central vacuole", "Mitochondria", "Golgi apparatus"], a: 1, e: "The central vacuole takes up water, pushing the membrane against the cell wall; losing water causes wilting." }
+  },
+  golgi: {
+    zh: { q: "高尔基体的主要功能是什么？", o: ["合成蛋白质", "修饰、分拣、包装蛋白质", "产生 ATP", "光合作用"], a: 1, e: "高尔基体不制造蛋白质，而是对来自内质网的蛋白质进行修饰、分拣并打包成小泡运出。" },
+    en: { q: "What is the main function of the Golgi apparatus?", o: ["Synthesize proteins", "Modify, sort, and package proteins", "Produce ATP", "Perform photosynthesis"], a: 1, e: "The Golgi does not make proteins; it modifies, sorts, and packages proteins from the ER into vesicles." }
+  },
+  rougher: {
+    zh: { q: "分泌蛋白（要运出细胞的蛋白）由附着在哪个结构上的核糖体合成？", o: ["滑面内质网", "粗面内质网", "高尔基体", "液泡"], a: 1, e: "粗面内质网表面的核糖体合成分泌蛋白、膜蛋白和溶酶体蛋白。" },
+    en: { q: "Secreted proteins are synthesized by ribosomes attached to which structure?", o: ["Smooth ER", "Rough ER", "Golgi apparatus", "Vacuole"], a: 1, e: "Ribosomes on the rough ER make secreted, membrane, and lysosomal proteins." }
+  },
+  smoother: {
+    zh: { q: "下列哪项是滑面内质网的功能？", o: ["合成蛋白质", "合成脂质、解毒、储存钙离子", "产生 ATP", "分解过氧化氢"], a: 1, e: "滑面内质网无核糖体，负责合成脂质（磷脂、类固醇激素）、解毒和储存 Ca²⁺。" },
+    en: { q: "Which is a function of the smooth ER?", o: ["Protein synthesis", "Lipid synthesis, detoxification, and calcium ion storage", "ATP production", "Breaking down hydrogen peroxide"], a: 1, e: "Smooth ER lacks ribosomes and makes lipids, detoxifies, and stores calcium ions." }
+  },
+  ribosome: {
+    zh: { q: "为什么核糖体不被归类为膜包被细胞器？", o: ["它太小了", "它没有膜", "它只存在于细胞核内", "它是由 DNA 构成的"], a: 1, e: "核糖体由 rRNA 和蛋白质组成，没有膜包被，因此不属于膜性细胞器。" },
+    en: { q: "Why are ribosomes NOT classified as membrane-bound organelles?", o: ["They are too small", "They have no membrane", "They exist only in the nucleus", "They are made of DNA"], a: 1, e: "Ribosomes are made of rRNA and protein and have no membrane, so they are not membrane-bound organelles." }
+  },
+  lysosome: {
+    zh: { q: "溶酶体内部含有大量什么？", o: ["DNA", "水解酶（酸性环境）", "叶绿素", "ATP 合酶"], a: 1, e: "溶酶体是单层膜囊，内含大量水解酶，在酸性环境下分解大分子、废旧细胞器等。" },
+    en: { q: "What do lysosomes contain in abundance?", o: ["DNA", "Hydrolytic enzymes (acidic environment)", "Chlorophyll", "ATP synthase"], a: 1, e: "Lysosomes are single-membrane sacs full of hydrolytic enzymes that digest macromolecules in an acidic environment." }
+  },
+  peroxisome: {
+    zh: { q: "过氧化物酶体用哪种酶把有毒的 H₂O₂ 变成水？", o: ["水解酶", "过氧化氢酶（catalase）", "DNA 聚合酶", "ATP 合酶"], a: 1, e: "过氧化物酶体氧化脂肪酸产生 H₂O₂，再用过氧化氢酶把它分解成水和氧气。" },
+    en: { q: "Which enzyme do peroxisomes use to convert toxic hydrogen peroxide into water?", o: ["Hydrolase", "Catalase", "DNA polymerase", "ATP synthase"], a: 1, e: "Peroxisomes produce hydrogen peroxide during fatty acid oxidation, then use catalase to break it into water and oxygen." }
+  },
+  cytoskeleton: {
+    zh: { q: "细胞骨架中作为囊泡运输“轨道”的是哪种纤维？", o: ["中间纤维", "微管", "肌动蛋白微丝", "胶原蛋白"], a: 1, e: "微管是分子马达运输囊泡的轨道，也构成细胞分裂的纺锤体。" },
+    en: { q: "Which cytoskeletal fiber acts as tracks for vesicle transport?", o: ["Intermediate filaments", "Microtubules", "Actin microfilaments", "Collagen"], a: 1, e: "Microtubules serve as tracks for motor proteins carrying vesicles and form the mitotic spindle." }
+  },
+  membrane: {
+    zh: { q: "下列哪个模型描述细胞膜的结构？", o: ["锁钥模型", "流动镶嵌模型", "诱导契合模型", "双层细胞模型"], a: 1, e: "流动镶嵌模型：磷脂双分子层构成骨架，膜蛋白镶嵌其中并能侧向流动。" },
+    en: { q: "Which model describes the structure of the plasma membrane?", o: ["Lock-and-key model", "Fluid mosaic model", "Induced fit model", "Bilayer cell model"], a: 1, e: "The fluid mosaic model: a phospholipid bilayer with embedded, laterally mobile proteins." }
+  }
+};
+
+function renderQuiz(id) {
+  const qz = QUIZZES[id];
+  const box = document.getElementById("cardQuiz");
+  if (!qz) { box.innerHTML = ""; return; }
+  const q = qz[lang];
+  let html = '<p id="quizQ">' + q.q + "</p><div id='quizOpts'>";
+  for (let i = 0; i < q.o.length; i++) {
+    html += '<button class="quizOpt" data-i="' + i + '"><b>' + String.fromCharCode(65 + i) + ".</b> " + q.o[i] + "</button>";
+  }
+  html += "</div><div id='quizFeedback'></div>";
+  box.innerHTML = html;
+  box.querySelectorAll(".quizOpt").forEach(btn => {
+    btn.addEventListener("click", () => answerQuiz(box, q, btn));
+  });
+}
+
+function answerQuiz(box, q, btn) {
+  const i = parseInt(btn.dataset.i, 10);
+  const opts = box.querySelectorAll(".quizOpt");
+  opts.forEach(o => o.classList.add("disabled"));
+  const fb = box.querySelector("#quizFeedback");
+  if (i === q.a) {
+    btn.classList.add("correct");
+    fb.className = "correct";
+    fb.textContent = "✅ " + (lang === "zh" ? "正确！" : "Correct!") + "  " + q.e;
+  } else {
+    btn.classList.add("wrong");
+    opts[q.a].classList.add("correct");
+    fb.className = "wrong";
+    fb.textContent = "❌ " + (lang === "zh" ? "不对哦。" : "Not quite.") + "  " + q.e;
+  }
+}
+
+function fillCard(o) {
+  const L = o[lang], t = T[lang];
+  cardEmoji.textContent = o.emoji;
+  cardName.textContent = L.name;
+  cardTag.textContent = L.tag;
+  cardWhy.textContent = L.why;
+  cardFunc.textContent = L.func;
+  cardAp.innerHTML = L.ap.map(p => "<li>" + p + "</li>").join("");
+  cardLink.href = o.video;
+  cardLink.textContent = "▶ " + L.vLabel;
+  document.getElementById("hWhy").textContent = t.hWhy;
+  document.getElementById("hDiagram").textContent = t.hDiagram;
+  document.getElementById("hFunc").textContent = t.hFunc;
+  document.getElementById("hAp").textContent = t.hAp;
+  document.getElementById("hQuiz").textContent = t.hQuiz;
+  extNote.textContent = t.extNote;
+  diagramImg.src = ORG_IMG[o.id] || "";
+  renderQuiz(o.id);
+}
+
+function openCard(o) {
+  currentOrg = o;
+  cardOpen = true;
+  fillCard(o);
+  cardOverlay.classList.remove("hidden");
+  cardOverlay.scrollTop = 0;
+  document.getElementById("card").scrollTop = 0;
+  if (!visited.has(o.id)) { visited.add(o.id); refreshChecklist(); }
+  promptEl.classList.remove("on");
+  activeId = null;   /* 关掉卡片后能让提示重新出现 */
+}
+
+function closeCard() {
+  cardOpen = false;
+  currentOrg = null;
+  cardOverlay.classList.add("hidden");
+  if (visited.size === ORG.length && !completed) {
+    completed = true;
+    showComplete();
+  }
+}
+
+document.getElementById("cardClose").addEventListener("click", closeCard);
+cardOverlay.addEventListener("click", e => { if (e.target === cardOverlay) closeCard(); });
+
+/* --- 通关 --- */
+const completeScreen = document.getElementById("completeScreen");
+function showComplete() {
+  document.getElementById("doneTitle").textContent = T[lang].doneTitle;
+  document.getElementById("doneBody").innerHTML = T[lang].doneBody;
+  document.getElementById("againBtn").textContent = T[lang].again;
+  document.getElementById("switchBtn").textContent = T[lang].switch;
+  completeScreen.classList.remove("hidden");
+}
+document.getElementById("againBtn").addEventListener("click", () => {
+  visited.clear(); completed = false;
+  refreshChecklist();
+  completeScreen.classList.add("hidden");
+  player.x = 1300; player.y = 560;
+});
+document.getElementById("switchBtn").addEventListener("click", () => {
+  completeScreen.classList.add("hidden");
+  document.getElementById("langScreen").classList.remove("hidden");
+});
+
+/* --- 语言 --- */
+function setLang(l, fromStart) {
+  lang = l;
+  document.documentElement.lang = l === "zh" ? "zh" : "en";
+  const t = T[lang];
+  document.getElementById("langBtn").textContent = l === "zh" ? "EN" : "中文";
+  document.getElementById("moveHint").textContent = t.hint;
+  document.getElementById("lsTitle").textContent = t.title;
+  document.getElementById("lsSub").innerHTML = t.sub;
+  clTitleText.textContent = t.clTitle;
+  buildChecklist();
+  if (currentOrg && cardOpen) fillCard(currentOrg);
+  if (!fromStart) { activeId = null; updatePrompt(null); }
+  if (!completeScreen.classList.contains("hidden")) showComplete();
+}
+
+document.querySelectorAll(".langBtn").forEach(b => {
+  b.addEventListener("click", () => {
+    setLang(b.dataset.lang, true);
+    document.getElementById("langScreen").classList.add("hidden");
+  });
+});
+document.getElementById("langBtn").addEventListener("click", () => {
+  setLang(lang === "zh" ? "en" : "zh", false);
+});
+
+/* --- 输入 --- */
+window.addEventListener("keydown", e => {
+  const k = e.key.toLowerCase();
+  keys[k] = true;
+  if (k === "escape" && cardOpen) closeCard();
+  if (k === " " && !cardOpen) {
+    const a = ORG.find(o => o.id === activeId);
+    if (a) openCard(a);
+  }
+  if (["arrowup", "arrowdown", "arrowleft", "arrowright", " "].includes(k)) e.preventDefault();
+});
+window.addEventListener("keyup", e => { keys[e.key.toLowerCase()] = false; });
+
+cv.addEventListener("click", e => {
+  if (cardOpen) return;
+  if (!document.getElementById("langScreen").classList.contains("hidden")) return;
+  if (!completeScreen.classList.contains("hidden")) return;
+  const rect = cv.getBoundingClientRect();
+  const wx = e.clientX - rect.left + cam.x;
+  const wy = e.clientY - rect.top + cam.y;
+  const hit = pointInOrg(wx, wy);
+  if (hit) {
+    if (distTo(hit) < REACH) openCard(hit);
+    else toast(T[lang].moveCloser);
+    return;
+  }
+  if (pointInRibo(wx, wy)) {
+    openCard(ORG.find(x => x.id === "ribosome"));
+  }
+});
+
+/* --- 尺寸 --- */
+function resize() {
+  const dpr = window.devicePixelRatio || 1;
+  view.w = window.innerWidth;
+  view.h = window.innerHeight;
+  cv.width = Math.floor(view.w * dpr);
+  cv.height = Math.floor(view.h * dpr);
+  cv.style.width = view.w + "px";
+  cv.style.height = view.h + "px";
+}
+window.addEventListener("resize", resize);
+
+/* --- 启动 --- */
+resize();
+setLang("zh", true);
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
